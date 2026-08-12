@@ -14,6 +14,7 @@ mongoose
   .then(() => console.log('MongoDB Connected Successfully'))
   .catch((err) => console.error('MongoDB Connection Error:', err));
 
+  
 // View Engine Setup
 
 app.set('view engine', 'ejs');
