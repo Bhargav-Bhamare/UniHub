@@ -1,2 +1,2 @@
 # UniHub
-UniHub is an all-in-one smart campus platform designed to replace fragmented communication channels like WhatsApp and scattered legacy portals with a single, production-ready ecosystem.
+**UniHub** is an all-in-one smart campus platform designed to replace fragmented communication channels like WhatsApp and scattered legacy portals with a single, production-ready ecosystem. It seamlessly connects students, faculty, event coordinators, and administrators—streamlining attendance tracking, assignment submissions, campus event management, placement drives, and real-time announcements into one unified interface.

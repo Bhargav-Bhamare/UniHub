@@ -1,0 +1,28 @@
+{
+  "name": "unihub",
+  "version": "1.0.0",
+  "description": "A Smart Campus System",
+  "homepage": "https://github.com/Bhargav-Bhamare/UniHub#readme",
+  "bugs": {
+    "url": "https://github.com/Bhargav-Bhamare/UniHub/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bhargav-Bhamare/UniHub.git"
+  },
+  "license": "ISC",
+  "author": "Bhargav Bhamare",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "connect-mongo": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "mongoose": "^9.9.2"
+  }
+}
