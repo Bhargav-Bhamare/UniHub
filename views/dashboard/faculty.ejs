@@ -39,6 +39,19 @@
       </div>
 
       <div class="card">
+        <h3>Create Assignment</h3>
+        <form id="createAssignment" style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+          <input name="title" placeholder="Title" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="subject" placeholder="Subject" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="department" placeholder="Department" value="<%= user && user.department ? user.department : '' %>" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="semester" placeholder="Semester" type="number" value="1" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="dueDate" placeholder="Due Date (YYYY-MM-DD)" type="date" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <textarea name="description" placeholder="Description (optional)" style="padding:8px;border:1px solid #ddd;border-radius:4px"></textarea>
+          <div style="text-align:right"><button type="button" id="createBtn" class="btn">Create</button></div>
+        </form>
+      </div>
+
+      <div class="card">
         <h3>Recent Assignments</h3>
         <% const assignmentsData = (typeof assignments !== 'undefined' && assignments) ? assignments : [{id:1,title:'Lab 3', subject:'DBMS', dueDate:'2026-08-20'}]; %>
         <table>
@@ -67,5 +80,23 @@
       </div>
     </main>
   </div>
+  <script>
+    document.getElementById('createBtn').addEventListener('click', async function(){
+      const form = document.getElementById('createAssignment');
+      const data = {
+        title: form.title.value.trim(),
+        subject: form.subject.value.trim(),
+        department: form.department.value.trim(),
+        semester: parseInt(form.semester.value,10) || 1,
+        dueDate: form.dueDate.value || null,
+        description: form.description.value.trim()
+      };
+      if(!data.title || !data.subject || !data.department){ alert('Please fill required fields'); return; }
+      try{
+        const res = await fetch('/faculty/assignments/new', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        if(res.ok){ alert('Assignment created'); window.location.reload(); } else { const txt = await res.text(); alert('Error: '+txt); }
+      }catch(e){ console.error(e); alert('Network error'); }
+    });
+  </script>
 </body>
 </html>
