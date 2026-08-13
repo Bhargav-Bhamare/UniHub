@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %></title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Tahoma, Geneva, sans-serif;background:#f3f4f6;color:#222}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:220px;background:#0b1220;color:#fff;padding:18px}
+    .main{flex:1;padding:18px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:10px;border-radius:6px;margin-bottom:12px}
+    .card{background:#fff;padding:12px;border-radius:6px;margin-bottom:12px}
+    .muted{color:#6b7280}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid #eef2f7}
+    .btn{background:#10b981;color:#fff;padding:6px 8px;border-radius:4px;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">UniHub - Faculty</div>
+      <nav>
+        <a href="/faculty/dashboard" style="color:#cbd5e1;display:block;padding:8px;text-decoration:none">Overview</a>
+        <a href="/faculty/assignments" style="color:#cbd5e1;display:block;padding:8px;text-decoration:none">Assignments</a>
+        <a href="/auth/logout" style="color:#cbd5e1;display:block;padding:8px;text-decoration:none">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <div><strong><%= user && user.name ? user.name : 'Faculty' %></strong></div>
+          <div class="muted">Dept: <%= user && user.department ? user.department : 'N/A' %></div>
+        </div>
+        <div><a class="btn" href="/faculty/assignments/new">Create Assignment</a></div>
+      </div>
+
+      <div class="card">
+        <h3>Recent Assignments</h3>
+        <% const assignmentsData = (typeof assignments !== 'undefined' && assignments) ? assignments : [{id:1,title:'Lab 3', subject:'DBMS', dueDate:'2026-08-20'}]; %>
+        <table>
+          <thead><tr><th>Title</th><th>Subject</th><th>Due</th><th></th></tr></thead>
+          <tbody>
+            <% assignmentsData.forEach(a=>{ %>
+              <tr>
+                <td><%= a.title %></td>
+                <td><%= a.subject %></td>
+                <td><%= a.dueDate %></td>
+                <td><a class="btn" href="/faculty/assignments/<%= a.id %>/submissions">Submissions</a></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Recent Submissions</h3>
+        <% const subsData = (typeof submissions !== 'undefined' && submissions) ? submissions : [{studentName:'Ravi', assignment:'Lab 3', status:'On-time'}]; %>
+        <ul>
+          <% subsData.forEach(s=>{ %>
+            <li style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= s.studentName %></strong> — <span class="muted"><%= s.assignment %> (<%= s.status %>)</span></li>
+          <% }) %>
+        </ul>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

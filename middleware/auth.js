@@ -12,7 +12,10 @@ const authorizeRoles = (...roles) => {
     if (!req.session.user) {
       return res.redirect('/auth/login');
     }
-    if (!roles.includes(req.session.user.role)) {
+    // normalize role strings to avoid mismatches (trim/case)
+    const userRole = req.session.user.role ? String(req.session.user.role).trim().toLowerCase() : '';
+    const allowed = roles.map(r => String(r).trim().toLowerCase());
+    if (!allowed.includes(userRole)) {
       return res.status(403).send('Access Denied: You do not have permission to view this page.');
     }
     next();

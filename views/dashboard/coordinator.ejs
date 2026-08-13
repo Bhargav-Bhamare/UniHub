@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %></title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Verdana, Geneva, sans-serif;background:#f7f9fb;color:#222}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:220px;background:#0f1724;color:#fff;padding:18px}
+    .nav a{display:block;color:#cbd5e1;padding:8px;text-decoration:none;border-radius:5px}
+    .main{flex:1;padding:18px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:10px;border-radius:6px;margin-bottom:12px}
+    .card{background:#fff;padding:12px;border-radius:6px;margin-bottom:12px}
+    .muted{color:#6b7280}
+    .list{list-style:none}
+    .btn{background:#2563eb;color:#fff;padding:6px 8px;border-radius:4px;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">UniHub - Coord</div>
+      <nav class="nav">
+        <a href="/coordinator/dashboard">Overview</a>
+        <a href="/coordinator/events">Manage Events</a>
+        <a href="/coordinator/requests">Approvals</a>
+        <a href="/auth/logout">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <div><strong><%= user && user.name ? user.name : 'Coordinator' %></strong></div>
+          <div class="muted">Dept: <%= user && user.department ? user.department : 'N/A' %></div>
+        </div>
+        <div class="muted">Quick actions</div>
+      </div>
+
+      <div class="card">
+        <h3>Pending Approvals</h3>
+        <% const approvalsData = (typeof approvals !== 'undefined' && approvals) ? approvals : [{id:1, type:'Event', title:'Hackathon', requester:'Prof. Sharma'}]; %>
+        <ul class="list">
+          <% approvalsData.forEach(a=>{ %>
+            <li style="padding:8px 0;border-bottom:1px solid #eef2f7"><strong><%= a.title %></strong> — <span class="muted"><%= a.requester %></span>
+              <div style="margin-top:6px"><button class="btn" onclick="approve(<%= a.id %>)">Approve</button> &nbsp; <button class="btn" style="background:#ef4444" onclick="reject(<%= a.id %>)">Reject</button></div>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Manage Events</h3>
+        <% const evsData = (typeof events !== 'undefined' && events) ? events : [{id:1,title:'Workshop', date:'2026-10-01'}]; %>
+        <ul class="list">
+          <% evsData.forEach(e=>{ %>
+            <li style="padding:8px 0;border-bottom:1px solid #eef2f7"><strong><%= e.title %></strong> — <span class="muted"><%= e.date %></span></li>
+          <% }) %>
+        </ul>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // quick handlers - backend endpoints not wired here by default
+    function approve(id){ fetch('/coordinator/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}).then(r=> r.ok ? alert('Approved') : alert('Failed')) }
+    function reject(id){ fetch('/coordinator/reject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}).then(r=> r.ok ? alert('Rejected') : alert('Failed')) }
+  </script>
+</body>
+</html>
