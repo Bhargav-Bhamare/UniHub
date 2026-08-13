@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title><%= title %></title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial;background:#f7fafc;padding:18px}
+    .item{background:#fff;padding:8px;border-radius:6px;margin-bottom:8px}
+    .muted{color:#6b7280}
+  </style>
+</head>
+<body>
+  <h2>Calendar</h2>
+  <h3>Upcoming Assignments</h3>
+  <% assignments.forEach(a=>{ %>
+    <div class="item"><strong><%= a.title %></strong> — <span class="muted">Due: <%= a.dueDate ? new Date(a.dueDate).toISOString().slice(0,10) : 'TBD' %></span></div>
+  <% }) %>
+
+  <h3 style="margin-top:12px;">Upcoming Events</h3>
+  <% events.forEach(e=>{ %>
+    <div class="item"><strong><%= e.title %></strong> — <span class="muted">On: <%= e.eventDate ? new Date(e.eventDate).toISOString().slice(0,10) : 'TBD' %></span></div>
+  <% }) %>
+</body>
+</html>

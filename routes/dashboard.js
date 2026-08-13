@@ -1,18 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { isAuthenticated, authorizeRoles } = require('../middleware/auth');
-const Submission = require('../models/Submission');
+const User = require('../models/User');
 const Assignment = require('../models/Assignment');
+const Submission = require('../models/Submission');
+const Attendance = require('../models/Attendance');
 const Event = require('../models/Event');
 const Placement = require('../models/Placement');
-const User = require('../models/User');
-const Attendance = require('../models/Attendance');
+const Notification = require('../models/Notification');
 
 // Student Dashboard
 router.get('/student/dashboard', isAuthenticated, authorizeRoles('student'), async (req, res) => {
   try {
     const user = req.session.user;
-    // fetch a few upcoming assignments/events/placements for the student
     const assignments = await Assignment.find({ department: user.department }).sort({ dueDate: 1 }).limit(6).lean();
     const events = await Event.find({}).sort({ eventDate: 1 }).limit(6).lean();
     const placements = await Placement.find({}).sort({ deadline: 1 }).limit(6).lean();
@@ -29,7 +29,6 @@ router.get('/student/dashboard', isAuthenticated, authorizeRoles('student'), asy
     });
     const attendance = Object.keys(totalBySubject).map(subj => ({ subject: subj, percent: Math.round((presentBySubject[subj] || 0) / totalBySubject[subj] * 100) }));
 
-    // normalize dates to simple strings for templates
     const mapDate = (d) => (d ? new Date(d).toISOString().slice(0,10) : 'TBD');
     assignments.forEach(a => a.dueDate = mapDate(a.dueDate));
     events.forEach(e => e.date = mapDate(e.eventDate || e.date));
@@ -47,11 +46,9 @@ router.get('/faculty/dashboard', isAuthenticated, authorizeRoles('faculty'), asy
   try {
     const user = req.session.user;
     const assignments = await Assignment.find({ faculty: user.id }).sort({ createdAt: -1 }).limit(8).lean();
-    // get recent submissions for those assignments
     const assignmentIds = assignments.map(a => a._id);
     const submissions = await Submission.find({ assignment: { $in: assignmentIds } }).populate('student').sort({ createdAt: -1 }).limit(8).lean();
-    // map submissions for simple template use
-    const subs = submissions.map(s => ({ studentName: s.student && s.student.name ? s.student.name : 'Student', assignment: s.assignment.title || s.assignment, status: s.status }));
+    const subs = submissions.map(s => ({ studentName: s.student && s.student.name ? s.student.name : 'Student', assignment: (s.assignment && s.assignment.title) ? s.assignment.title : String(s.assignment), status: s.status }));
     res.render('dashboard/faculty', { title: 'Faculty Dashboard - UniHub', user, assignments, submissions: subs });
   } catch (err) {
     console.error('Faculty dashboard error:', err);
@@ -64,7 +61,6 @@ router.get('/coordinator/dashboard', isAuthenticated, authorizeRoles('coordinato
   try {
     const user = req.session.user;
     const events = await Event.find({}).sort({ eventDate: 1 }).limit(8).lean();
-    // simple approvals placeholder - could be fetched from a real approvals collection
     const approvals = [{ id: 1, type: 'Event', title: 'Hackathon', requester: 'Prof. Sharma' }];
     res.render('dashboard/coordinator', { title: 'Coordinator Dashboard - UniHub', user, events, approvals });
   } catch (err) {
@@ -76,150 +72,182 @@ router.get('/coordinator/dashboard', isAuthenticated, authorizeRoles('coordinato
 // Admin Dashboard
 router.get('/admin/dashboard', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
   try {
-    const user = req.session.user;
-    const usersCount = await User.countDocuments();
-    const eventsCount = await Event.countDocuments();
-    const placementsCount = await Placement.countDocuments();
-    const recentUsers = await User.find({}).sort({ createdAt: -1 }).limit(6).lean();
-    const recentEvents = await Event.find({}).sort({ eventDate: -1 }).limit(6).lean();
-
-    res.render('dashboard/admin', { title: 'Admin Dashboard - UniHub', user, stats: { users: usersCount, events: eventsCount, placements: placementsCount }, users: recentUsers, events: recentEvents });
+    const placements = await Placement.find({}).sort({ createdAt: -1 }).lean();
+    res.render('dashboard/admin', { title: 'Admin Dashboard', placements, user: req.session.user });
   } catch (err) {
-    console.error('Admin dashboard error:', err);
-    res.render('dashboard/admin', { title: 'Admin Dashboard - UniHub', user: req.session.user });
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
+// submissions
+router.post('/submission', isAuthenticated, async (req, res) => {
+  try {
+    const { assignmentId, content, link } = req.body;
+    const submission = new Submission({ assignment: assignmentId, student: req.session.user.id, content: content || link });
+    await submission.save();
+    res.json({ success: true, submission });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// register for event
+router.post('/events/register', isAuthenticated, async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    await Event.findByIdAndUpdate(eventId, { $addToSet: { registeredStudents: req.session.user.id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// apply for placement
+router.post('/placements/apply', isAuthenticated, async (req, res) => {
+  try {
+    const { placementId } = req.body;
+    await Placement.findByIdAndUpdate(placementId, { $addToSet: { applicants: req.session.user.id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// faculty creating assignment
+router.post('/faculty/assignments/new', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
+  try {
+    const { title, description, subject, dueDate } = req.body;
+    const assignment = new Assignment({ title, description, subject, dueDate, createdBy: req.session.user.id });
+    await assignment.save();
+    res.json({ success: true, assignment });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// faculty attendance
+router.post('/faculty/attendance', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
+  try {
+    const { date, presentStudents } = req.body; // presentStudents => [studentIds]
+    const docs = (presentStudents || []).map(sid => ({ date, student: sid, status: 'present', recordedBy: req.session.user.id }));
+    await Attendance.insertMany(docs);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// events
+router.post('/events/new', isAuthenticated, authorizeRoles('coordinator','admin'), async (req, res) => {
+  try {
+    const { title, description, eventDate, location } = req.body;
+    const e = new Event({ title, description, eventDate, location, createdBy: req.session.user.id });
+    await e.save();
+    res.json({ success: true, event: e });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// placements
+router.post('/placements/new', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
+  try {
+    const { company, role, description } = req.body;
+    const p = new Placement({ company, role, description, createdBy: req.session.user.id });
+    await p.save();
+    res.json({ success: true, placement: p });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// notifications
+router.get('/notifications', isAuthenticated, async (req, res) => {
+  try {
+    const notes = await Notification.find({ user: req.session.user.id }).sort({ createdAt: -1 }).lean();
+    res.render('dashboard/notifications', { title: 'Notifications', notes, user: req.session.user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
+router.post('/api/notifications/:id/read', isAuthenticated, async (req, res) => {
+  try {
+    const id = req.params.id;
+    await Notification.findByIdAndUpdate(id, { read: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// grades
+router.get('/grades', isAuthenticated, async (req, res) => {
+  try {
+    const submissions = await Submission.find({ student: req.session.user.id }).populate('assignment').sort({ createdAt: -1 }).lean();
+    res.render('dashboard/grades', { title: 'Grades', submissions, user: req.session.user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
+// activity
+router.get('/activity', isAuthenticated, async (req, res) => {
+  try {
+    const assignments = await Assignment.find({}).sort({ createdAt: -1 }).limit(10).lean();
+    const events = await Event.find({}).sort({ eventDate: 1 }).limit(10).lean();
+    const submissions = await Submission.find({}).sort({ createdAt: -1 }).limit(10).populate('student').lean();
+    res.render('dashboard/activity', { title: 'Activity', assignments, events, submissions, user: req.session.user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
+// calendar
+router.get('/calendar', isAuthenticated, async (req, res) => {
+  try {
+    const assignments = await Assignment.find({}).sort({ dueDate: 1 }).limit(20).lean();
+    const events = await Event.find({}).sort({ eventDate: 1 }).limit(20).lean();
+    res.render('dashboard/calendar', { title: 'Calendar', assignments, events, user: req.session.user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
+// profile
+router.get('/profile', isAuthenticated, async (req, res) => {
+  try {
+    const user = await User.findById(req.session.user.id).lean();
+    res.render('dashboard/profile', { title: 'Profile', user, userSession: req.session.user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
+router.post('/profile', isAuthenticated, async (req, res) => {
+  try {
+    const updates = req.body;
+    const user = await User.findByIdAndUpdate(req.session.user.id, updates, { new: true }).lean();
+    req.session.user = Object.assign({}, req.session.user, { name: user.name, department: user.department });
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
   }
 });
 
 module.exports = router;
-
-// POST: Submit assignment (expects JSON { assignmentId, link })
-router.post('/submission', isAuthenticated, authorizeRoles('student'), async (req, res) => {
-  try {
-    const studentId = req.session.user.id;
-    const { assignmentId, link } = req.body;
-    if (!assignmentId || !link) return res.status(400).send('Missing fields');
-
-    const assignment = await Assignment.findById(assignmentId);
-    if (!assignment) return res.status(404).send('Assignment not found');
-
-    const status = (new Date(assignment.dueDate) < new Date()) ? 'Late' : 'On-time';
-
-    const sub = new Submission({
-      assignment: assignment._id,
-      student: studentId,
-      gitHubUrl: link,
-      status
-    });
-    await sub.save();
-    return res.status(200).send('Submission saved');
-  } catch (err) {
-    console.error('Submission error:', err);
-    return res.status(500).send('Server error');
-  }
-});
-
-// POST: Register for event (expects JSON { eventId })
-router.post('/events/register', isAuthenticated, authorizeRoles('student'), async (req, res) => {
-  try {
-    const studentId = req.session.user.id;
-    const { eventId } = req.body;
-    if (!eventId) return res.status(400).send('Missing eventId');
-
-    const ev = await Event.findById(eventId);
-    if (!ev) return res.status(404).send('Event not found');
-
-    if (ev.registeredStudents && ev.registeredStudents.includes(studentId)) {
-      return res.status(400).send('Already registered');
-    }
-    ev.registeredStudents = ev.registeredStudents || [];
-    ev.registeredStudents.push(studentId);
-    await ev.save();
-    return res.status(200).send('Registered');
-  } catch (err) {
-    console.error('Event register error:', err);
-    return res.status(500).send('Server error');
-  }
-});
-
-// POST: Apply for placement (expects JSON { placementId })
-router.post('/placements/apply', isAuthenticated, authorizeRoles('student'), async (req, res) => {
-  try {
-    const studentId = req.session.user.id;
-    const { placementId } = req.body;
-    if (!placementId) return res.status(400).send('Missing placementId');
-
-    const p = await Placement.findById(placementId);
-    if (!p) return res.status(404).send('Placement not found');
-
-    p.applicants = p.applicants || [];
-    const already = p.applicants.find(a => String(a.student) === String(studentId));
-    if (already) return res.status(400).send('Already applied');
-
-    p.applicants.push({ student: studentId });
-    await p.save();
-    return res.status(200).send('Applied');
-  } catch (err) {
-    console.error('Placement apply error:', err);
-    return res.status(500).send('Server error');
-  }
-});
-
-// POST: Faculty - create assignment (expects JSON { title, description, subject, department, semester, dueDate })
-router.post('/faculty/assignments/new', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
-  try {
-    const userId = req.session.user.id;
-    const { title, description, subject, department, semester, dueDate } = req.body;
-    if (!title || !subject || !department) return res.status(400).send('Missing required fields');
-    const a = new Assignment({ title, description: description || '', subject, department, semester: semester || 1, dueDate: dueDate ? new Date(dueDate) : undefined, faculty: userId });
-    await a.save();
-    return res.status(200).json({ ok: true, id: a._id });
-  } catch (err) {
-    console.error('Create assignment error:', err);
-    return res.status(500).send('Server error');
-  }
-});
-
-// POST: Faculty - mark attendance (expects JSON { subject, date, studentIdsPresent: [] })
-router.post('/faculty/attendance', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
-  try {
-    const userId = req.session.user.id;
-    const { subject, date, studentIdsPresent, department, semester } = req.body;
-    if (!subject || !department || !semester) return res.status(400).send('Missing fields');
-    const records = [];
-    (studentIdsPresent || []).forEach(sid => records.push({ student: sid, status: 'Present' }));
-    const att = new Attendance({ subject, department, semester, date: date ? new Date(date) : new Date(), faculty: userId, records });
-    await att.save();
-    return res.status(200).send('Attendance saved');
-  } catch (err) {
-    console.error('Attendance create error:', err);
-    return res.status(500).send('Server error');
-  }
-});
-
-// POST: Coordinator/Admin - create event
-router.post('/events/new', isAuthenticated, authorizeRoles('coordinator','admin'), async (req, res) => {
-  try {
-    const { title, description, venue, eventDate, registrationDeadline, totalSeats } = req.body;
-    if (!title || !venue || !eventDate) return res.status(400).send('Missing fields');
-    const ev = new Event({ title, description: description || '', venue, eventDate: new Date(eventDate), registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : null, totalSeats: totalSeats || 0, createdBy: req.session.user.id });
-    await ev.save();
-    return res.status(200).json({ ok: true, id: ev._id });
-  } catch (err) {
-    console.error('Create event error:', err);
-    return res.status(500).send('Server error');
-  }
-});
-
-// POST: Admin - create placement
-router.post('/placements/new', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
-  try {
-    const { companyName, jobRole, ctc, eligibility, deadline } = req.body;
-    if (!companyName || !jobRole) return res.status(400).send('Missing fields');
-    const p = new Placement({ companyName, jobRole, ctc: ctc || '', eligibility: eligibility || '', deadline: deadline ? new Date(deadline) : null, createdBy: req.session.user.id });
-    await p.save();
-    return res.status(200).json({ ok: true, id: p._id });
-  } catch (err) {
-    console.error('Create placement error:', err);
-    return res.status(500).send('Server error');
-  }
-});

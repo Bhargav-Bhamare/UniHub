@@ -91,14 +91,22 @@
           <!-- Attendance Summary -->
           <div id="attendance" class="card attendance">
             <h3 style="margin-bottom:8px;">Attendance Summary</h3>
-            <% const attendanceData = (typeof attendance !== 'undefined' && attendance.length) ? attendance : [{subject: 'DBMS', percent:85}, {subject:'OS', percent:72}, {subject:'Maths', percent:92}]; %>
-            <% attendanceData.forEach(function(a){ %>
+            <% if (typeof attendance === 'number') { %>
               <div class="subject">
-                <div style="width:35%;"><strong><%= a.subject %></strong></div>
-                <div class="progress" aria-hidden="true"><i class="progress-bar" data-percent="<%= a.percent %>"></i></div>
-                <div class="percent"><%= a.percent %>&#37;</div>
+                <div style="width:35%;"><strong>Overall</strong></div>
+                <div class="progress" aria-hidden="true"><i id="overallProgress" class="progress-bar" data-percent="<%= attendance %>"></i></div>
+                <div class="percent" id="overallPercent"><%= attendance %>&#37;</div>
               </div>
-            <% }) %>
+            <% } else { %>
+              <% const attendanceData = (typeof attendance !== 'undefined' && attendance.length) ? attendance : [{subject: 'DBMS', percent:85}, {subject:'OS', percent:72}, {subject:'Maths', percent:92}]; %>
+              <% attendanceData.forEach(function(a){ %>
+                <div class="subject">
+                  <div style="width:35%;"><strong><%= a.subject %></strong></div>
+                  <div class="progress" aria-hidden="true"><i class="progress-bar" data-percent="<%= a.percent %>"></i></div>
+                  <div class="percent"><%= a.percent %>&#37;</div>
+                </div>
+              <% }) %>
+            <% } %>
           </div>
 
           <!-- Assignments -->

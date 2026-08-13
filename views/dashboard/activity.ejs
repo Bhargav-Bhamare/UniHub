@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title><%= title %></title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial;background:#fff;padding:18px}
+    .card{padding:10px;border-bottom:1px solid #eee}
+    .muted{color:#6b7280}
+  </style>
+</head>
+<body>
+  <h2>Recent Activity</h2>
+  <div>
+    <h3>Assignments</h3>
+    <% assignments.forEach(a => { %>
+      <div class="card"><strong><%= a.title %></strong> — <span class="muted"><%= a.subject %> · <%= new Date(a.createdAt).toLocaleDateString() %></span></div>
+    <% }) %>
+  </div>
+  <div>
+    <h3>Events</h3>
+    <% events.forEach(e => { %>
+      <div class="card"><strong><%= e.title %></strong> — <span class="muted"><%= new Date(e.eventDate || e.createdAt).toLocaleDateString() %></span></div>
+    <% }) %>
+  </div>
+  <div>
+    <h3>Submissions</h3>
+    <% submissions.forEach(s => { %>
+      <div class="card"><strong><%= s.student && s.student.name ? s.student.name : 'Student' %></strong> submitted — <span class="muted"><%= new Date(s.createdAt).toLocaleString() %></span></div>
+    <% }) %>
+  </div>
+</body>
+</html>
