@@ -38,6 +38,62 @@ app.use(express.static(path.join(__dirname, 'public')));
 //     },
 //   })
 // );
+// MongoStore Options
+
+const MongoStoreModule = MongoStore;
+let store;
+try {
+  if (MongoStoreModule && typeof MongoStoreModule.create === 'function') {
+    // connect-mongo v4+
+    store = MongoStoreModule.create({
+      mongoUrl: process.env.MONGODB_URI,
+      touchAfter: 24 * 3600,
+    });
+  } else if (MongoStoreModule && MongoStoreModule.default && typeof MongoStoreModule.default.create === 'function') {
+    // ESM default export interop
+    store = MongoStoreModule.default.create({
+      mongoUrl: process.env.MONGODB_URI,
+      touchAfter: 24 * 3600,
+    });
+  } else if (typeof MongoStoreModule === 'function') {
+    // connect-mongo v3 style: require('connect-mongo')(session)
+    try {
+      const factory = MongoStoreModule(session);
+      store = factory({ mongooseConnection: mongoose.connection });
+    } catch (err) {
+      // try constructor/class fallback
+      store = new MongoStoreModule({ mongoUrl: process.env.MONGODB_URI });
+    }
+  }
+} catch (err) {
+  console.error('Error creating Mongo session store:', err);
+}
+
+if (!store) {
+  console.warn('Warning: could not create Mongo session store; sessions may not persist.');
+}
+
+if (store && typeof store.on === 'function') {
+  store.on('error', (err) => {
+    console.log('Error in MONGO SESSION STORE!', err);
+  });
+}
+
+// Cookie / Session Options
+const sessionOptions = {
+  store,
+  secret: process.env.SESSION_SECRET || 'unihub_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+  },
+};
+
+// Apply session middleware so `req.session` is available
+app.use(session(sessionOptions));
 
 // Global Variables Middleware
 app.use((req, res, next) => {
@@ -53,6 +109,9 @@ app.use('/auth', authRoutes);
 app.get('/', (req, res) => {
   res.send("Welcome to UniHub!");
 });
+
+const dashboardRoutes = require('./routes/dashboard');
+app.use('/', dashboardRoutes);
 
 // Start Server
 const PORT = process.env.PORT || 3000;

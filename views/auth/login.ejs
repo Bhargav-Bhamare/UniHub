@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+    <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Login to UniHub</h2>
+    <form action="/auth/login" method="POST" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Email Address</label>
+        <input type="email" name="email" required class="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Password</label>
+        <input type="password" name="password" required class="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-blue-500">
+      </div>
+      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 font-semibold">
+        Login
+      </button>
+    </form>
+    <p class="mt-4 text-sm text-center text-gray-600">
+      Don't have an account? <a href="/auth/register" class="text-blue-600 hover:underline">Register here</a>
+    </p>
+  </div>
+</body>
+</html>

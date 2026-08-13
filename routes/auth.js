@@ -12,9 +12,10 @@ router.get('/register', (req, res) => {
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role, rollNumber, department, semester } = req.body;
+    const normalizedEmail = (email || '').trim().toLowerCase();
 
     // Check if user exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).send('Email already registered.');
     }
@@ -25,7 +26,7 @@ router.post('/register', async (req, res) => {
     // Create User
     const newUser = new User({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role: role || 'student',
       rollNumber,
@@ -50,8 +51,9 @@ router.get('/login', (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = (email || '').trim().toLowerCase();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(400).send('Invalid email or password.');
     }
