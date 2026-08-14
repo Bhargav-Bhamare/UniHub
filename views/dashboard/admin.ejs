@@ -9,7 +9,9 @@
     body{font-family: Arial, Helvetica, sans-serif; background:#f4f6f9; color:#222}
     .app{display:flex; min-height:100vh}
     .sidebar{width:220px; background:#111827; color:#fff; padding:18px}
-    .logo{font-weight:bold;margin-bottom:12px}
+    .logo{margin-bottom:12px;display:flex;align-items:center;gap:8px}
+    .site-logo{height:32px;width:auto;display:inline-block}
+    .logo-text{font-weight:bold;color:#fff}
     .nav{list-style:none}
     .nav a{display:block;color:#d1d5db;padding:8px;border-radius:5px;text-decoration:none}
     .nav a:hover{background:#0b1220;color:#fff}
@@ -26,7 +28,7 @@
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="logo">UniHub - Admin</div>
+      <div class="logo"><img src="/logo.png" alt="UniHub" class="site-logo"><span class="logo-text">UniHub - Admin</span></div>
       <ul class="nav">
         <li><a href="/admin/dashboard">Overview</a></li>
         <li><a href="/admin/users">Manage Users</a></li>
@@ -53,30 +55,174 @@
           <div class="stat">Placements<br><strong><%= statsData.placements %></strong></div>
         </div>
       </div>
-
       <div class="card">
-        <h3>Recent Users</h3>
-        <% const usersListData = (typeof users !== 'undefined' && users) ? users : [{name:'Ravi', email:'ravi@example.com'},{name:'Asha', email:'asha@example.com'}]; %>
+        <h3>Manage Users</h3>
+        <form id="createUserForm" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <input name="name" placeholder="Name" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="email" placeholder="Email" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <select name="role" style="padding:8px;border:1px solid #ddd;border-radius:4px"><option value="student">Student</option><option value="faculty">Faculty</option><option value="coordinator">Coordinator</option><option value="admin">Admin</option></select>
+          <input name="department" placeholder="Department" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <div style="margin-left:auto"><button type="button" id="createUserBtn" class="btn">Create User</button></div>
+        </form>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input id="userSearch" placeholder="Search users by name or email" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:4px">
+          <div class="muted">Showing <span id="usersCount">0</span></div>
+        </div>
         <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
-          <tbody>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Dept</th><th></th></tr></thead>
+          <tbody id="usersTbody">
+            <% const usersListData = (typeof users !== 'undefined' && users) ? users : []; %>
             <% usersListData.forEach(u => { %>
-              <tr><td><%= u.name %></td><td><%= u.email %></td><td><%= u.role || 'student' %></td></tr>
+              <tr data-id="<%= u._id %>"><td><%= u.name %></td><td><%= u.email %></td><td><%= u.role || 'student' %></td><td><%= u.department || '' %></td><td><button class="btn" data-id="<%= u._id %>" onclick="openEditModal('<%= u._id %>')">Edit</button> <button class="btn" data-id="<%= u._id %>" onclick="deleteUser('<%= u._id %>')">Delete</button></td></tr>
             <% }) %>
           </tbody>
         </table>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <button id="prevPage" class="btn">Prev</button>
+          <div class="muted">Page <span id="pageNum">1</span></div>
+          <button id="nextPage" class="btn">Next</button>
+        </div>
+        <div style="margin-top:8px"><a class="btn" href="/admin/export/users">Export Users CSV</a></div>
+      </div>
+
+      <!-- Edit User Modal -->
+      <div id="editModal" style="display:none;position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.4);align-items:center;justify-content:center">
+        <div style="background:#fff;padding:16px;border-radius:8px;max-width:520px;width:90%">
+          <h3>Edit User</h3>
+          <form id="editUserForm" style="display:flex;flex-direction:column;gap:8px">
+            <input name="name" placeholder="Name" />
+            <input name="email" placeholder="Email" />
+            <select name="role"><option value="student">Student</option><option value="faculty">Faculty</option><option value="coordinator">Coordinator</option><option value="admin">Admin</option></select>
+            <input name="department" placeholder="Department" />
+            <input name="password" type="password" placeholder="New password (leave blank to keep)" />
+            <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" id="saveUserBtn" class="btn">Save</button><button type="button" id="cancelEditBtn" class="btn">Cancel</button></div>
+          </form>
+        </div>
       </div>
 
       <div class="card">
-        <h3>Recent Events</h3>
-        <% const evsData = (typeof events !== 'undefined' && events) ? events : [{title:'Tech Fest', venue:'Auditorium', date:'2026-09-03'}]; %>
-        <ul>
+        <h3>Manage Events</h3>
+        <form id="createEventForm" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <input name="title" placeholder="Title" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="date" type="date" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="venue" placeholder="Venue" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <div style="margin-left:auto"><button type="button" id="createEventBtn" class="btn">Create Event</button></div>
+        </form>
+        <ul id="eventsList">
+          <% const evsData = (typeof events !== 'undefined' && events) ? events : []; %>
           <% evsData.forEach(e=>{ %>
-            <li style="padding:6px 0"><strong><%= e.title %></strong> — <span class="muted"><%= e.date %> @ <%= e.venue %></span></li>
+            <li style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= e.title %></strong> — <span class="muted"><%= e.eventDate ? (new Date(e.eventDate)).toISOString().slice(0,10) : '' %> @ <%= e.venue || e.location || '' %></span> <button class="btn" style="margin-left:8px;" onclick="deleteEvent('<%= e._id %>')">Delete</button></li>
+          <% }) %>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Manage Placements</h3>
+        <form id="createPlacementForm" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <input name="company" placeholder="Company" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="role" placeholder="Role" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <div style="margin-left:auto"><button type="button" id="createPlacementBtn" class="btn">Create</button></div>
+        </form>
+        <ul id="placementsList">
+          <% const placementsData = (typeof placements !== 'undefined' && placements) ? placements : []; %>
+          <% placementsData.forEach(p=>{ %>
+            <li style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= p.company %></strong> — <span class="muted"><%= p.role %></span> <button class="btn" style="margin-left:8px;" onclick="deletePlacement('<%= p._id %>')">Delete</button></li>
           <% }) %>
         </ul>
       </div>
     </main>
   </div>
+  <script>
+    // create user
+    document.getElementById('createUserBtn').addEventListener('click', async ()=>{
+      const f = document.getElementById('createUserForm');
+      const data = { name: f.name.value.trim(), email: f.email.value.trim(), role: f.role.value, department: f.department.value.trim() };
+      if(!data.name||!data.email) return alert('name and email required');
+      try{
+        const res = await fetch('/admin/users/create',{method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify(data)});
+        const j = await res.json(); if(j.success){ alert('User created'); location.reload(); } else alert(j.message||'Failed');
+      }catch(e){console.error(e);alert('Network error')}
+    });
+
+    async function deleteUser(id){ if(!confirm('Delete user?')) return; try{ const res = await fetch('/admin/users/'+id+'/delete',{method:'POST'}); if((await res.json()).success) location.reload(); }catch(e){alert('Error')} }
+
+    document.getElementById('createEventBtn').addEventListener('click', async ()=>{
+      const f = document.getElementById('createEventForm');
+      const data = { title: f.title.value.trim(), eventDate: f.date.value, location: f.venue.value.trim() };
+      if(!data.title) return alert('title required');
+      try{ const res = await fetch('/events/new',{method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify(data)}); const j=await res.json(); if(j.success) location.reload(); else alert('Failed'); }catch(e){alert('Error')}
+    });
+
+    async function deleteEvent(id){ if(!confirm('Delete event?')) return; try{ const res = await fetch('/admin/events/'+id+'/delete',{method:'POST'}); if((await res.json()).success) location.reload(); }catch(e){alert('Error')} }
+
+    document.getElementById('createPlacementBtn').addEventListener('click', async ()=>{
+      const f = document.getElementById('createPlacementForm');
+      const data = { company: f.company.value.trim(), role: f.role.value.trim(), description: '' };
+      if(!data.company) return alert('company required');
+      try{ const res = await fetch('/placements/new',{method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify(data)}); const j=await res.json(); if(j.success) location.reload(); else alert('Failed'); }catch(e){alert('Error')}
+    });
+
+    async function deletePlacement(id){ if(!confirm('Delete placement?')) return; try{ const res = await fetch('/admin/placements/'+id+'/delete',{method:'POST'}); if((await res.json()).success) location.reload(); }catch(e){alert('Error')} }
+
+    // Client-side search and pagination
+    const usersPerPage = 10;
+    let usersData = [];
+    let filtered = [];
+    let page = 1;
+
+    // initialize from server-rendered rows
+    (function loadInitialUsers(){
+      const rows = document.querySelectorAll('#usersTbody tr');
+      usersData = Array.from(rows).map(r=>({ id: r.dataset.id, name: r.children[0].innerText.trim(), email: r.children[1].innerText.trim(), role: r.children[2].innerText.trim(), department: r.children[3].innerText.trim() }));
+      filtered = usersData.slice();
+      renderUsersPage();
+    })();
+
+    document.getElementById('userSearch').addEventListener('input', (e)=>{
+      const q = e.target.value.trim().toLowerCase();
+      filtered = usersData.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+      page = 1;
+      renderUsersPage();
+    });
+
+    document.getElementById('prevPage').addEventListener('click', ()=>{ if(page>1){ page--; renderUsersPage(); } });
+    document.getElementById('nextPage').addEventListener('click', ()=>{ const max = Math.ceil(filtered.length/usersPerPage); if(page<max){ page++; renderUsersPage(); } });
+
+    function renderUsersPage(){
+      const tbody = document.getElementById('usersTbody'); tbody.innerHTML = '';
+      const start = (page-1)*usersPerPage; const pageItems = filtered.slice(start, start+usersPerPage);
+      pageItems.forEach(u=>{ const tr = document.createElement('tr'); tr.dataset.id = u.id; tr.innerHTML = `<td>${u.name}</td><td>${u.email}</td><td>${u.role}</td><td>${u.department}</td><td><button class="btn" onclick="openEditModal('${u.id}')">Edit</button> <button class="btn" onclick="deleteUser('${u.id}')">Delete</button></td>`; tbody.appendChild(tr); });
+      document.getElementById('usersCount').innerText = filtered.length;
+      document.getElementById('pageNum').innerText = page;
+    }
+
+    // Edit modal logic
+    let currentEditId = null;
+    async function openEditModal(id){
+      currentEditId = id;
+      const res = await fetch('/admin/users/'+id);
+      const j = await res.json(); if(!j.success) return alert('Unable to fetch user');
+      const form = document.getElementById('editUserForm');
+      form.name.value = j.user.name || '';
+      form.email.value = j.user.email || '';
+      form.role.value = j.user.role || 'student';
+      form.department.value = j.user.department || '';
+      form.password.value = '';
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    document.getElementById('cancelEditBtn').addEventListener('click', ()=>{ document.getElementById('editModal').style.display='none'; currentEditId=null; });
+
+    document.getElementById('saveUserBtn').addEventListener('click', async ()=>{
+      if(!currentEditId) return;
+      const f = document.getElementById('editUserForm');
+      const updates = { name: f.name.value.trim(), email: f.email.value.trim(), role: f.role.value, department: f.department.value.trim() };
+      if(f.password.value) updates.password = f.password.value;
+      try{
+        const res = await fetch('/admin/users/'+currentEditId+'/update',{method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify(updates)});
+        const j = await res.json(); if(j.success){ alert('Saved'); document.getElementById('editModal').style.display='none'; currentEditId=null; location.reload(); } else alert('Save failed');
+      }catch(e){console.error(e);alert('Network error')}
+    });
+  </script>
 </body>
 </html>

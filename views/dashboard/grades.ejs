@@ -7,13 +7,15 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Arial;background:#f9fafb;padding:18px}
+    .site-logo{height:32px;width:auto;display:inline-block;vertical-align:middle;margin-right:8px}
+    .logo-row{display:flex;align-items:center;margin-bottom:10px}
     table{width:100%;border-collapse:collapse}
     th,td{padding:8px;border-bottom:1px solid #eee}
     .muted{color:#6b7280}
   </style>
 </head>
 <body>
-  <h2>My Grades</h2>
+  <div class="logo-row"><img src="/logo.png" alt="UniHub" class="site-logo"><h2>My Grades</h2></div>
   <p class="muted">Student: <strong><%= user && user.name %></strong></p>
   <table>
     <thead><tr><th>Assignment</th><th>Subject</th><th>Submitted</th><th>Marks</th><th>Feedback</th></tr></thead>

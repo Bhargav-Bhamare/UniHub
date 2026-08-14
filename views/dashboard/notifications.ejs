@@ -7,13 +7,15 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Arial;background:#f3f4f6;padding:18px}
+    .site-logo{height:32px;width:auto;display:inline-block;vertical-align:middle;margin-right:8px}
+    .logo-row{display:flex;align-items:center;margin-bottom:10px}
     .card{background:#fff;padding:12px;border-radius:6px;margin-bottom:8px}
     .muted{color:#6b7280}
     .btn{background:#2563eb;color:#fff;padding:6px 8px;border-radius:4px;text-decoration:none}
   </style>
   </head>
 <body>
-  <h2>Notifications</h2>
+  <div class="logo-row"><img src="/logo.png" alt="UniHub" class="site-logo"><h2>Notifications</h2></div>
   <p class="muted">Showing recent notices for <strong><%= user && user.name %></strong></p>
   <% if (!notifications || notifications.length === 0) { %>
     <div class="card">No notifications</div>

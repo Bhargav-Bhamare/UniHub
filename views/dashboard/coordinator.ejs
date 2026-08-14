@@ -10,6 +10,9 @@
     .app{display:flex;min-height:100vh}
     .sidebar{width:220px;background:#0f1724;color:#fff;padding:18px}
     .nav a{display:block;color:#cbd5e1;padding:8px;text-decoration:none;border-radius:5px}
+    .logo{margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .site-logo{height:32px;width:auto;display:inline-block}
+    .logo-text{font-weight:700;color:#fff}
     .main{flex:1;padding:18px}
     .topbar{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:10px;border-radius:6px;margin-bottom:12px}
     .card{background:#fff;padding:12px;border-radius:6px;margin-bottom:12px}
@@ -21,7 +24,7 @@
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="logo">UniHub - Coord</div>
+      <div class="logo"><img src="/logo.png" alt="UniHub" class="site-logo"><span class="logo-text">UniHub - Coord</span></div>
       <nav class="nav">
         <a href="/coordinator/dashboard">Overview</a>
         <a href="/coordinator/events">Manage Events</a>

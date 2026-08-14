@@ -9,6 +9,9 @@
     body{font-family:Tahoma, Geneva, sans-serif;background:#f3f4f6;color:#222}
     .app{display:flex;min-height:100vh}
     .sidebar{width:220px;background:#0b1220;color:#fff;padding:18px}
+    .logo{margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .site-logo{height:32px;width:auto;display:inline-block}
+    .logo-text{font-weight:700;color:#fff}
     .main{flex:1;padding:18px}
     .topbar{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:10px;border-radius:6px;margin-bottom:12px}
     .card{background:#fff;padding:12px;border-radius:6px;margin-bottom:12px}
@@ -21,7 +24,7 @@
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="logo">UniHub - Faculty</div>
+      <div class="logo"><img src="/logo.png" alt="UniHub" class="site-logo"><span class="logo-text">UniHub - Faculty</span></div>
       <nav>
         <a href="/faculty/dashboard" style="color:#cbd5e1;display:block;padding:8px;text-decoration:none">Overview</a>
         <a href="/faculty/assignments" style="color:#cbd5e1;display:block;padding:8px;text-decoration:none">Assignments</a>
@@ -48,6 +51,31 @@
           <input name="dueDate" placeholder="Due Date (YYYY-MM-DD)" type="date" style="padding:8px;border:1px solid #ddd;border-radius:4px">
           <textarea name="description" placeholder="Description (optional)" style="padding:8px;border:1px solid #ddd;border-radius:4px"></textarea>
           <div style="text-align:right"><button type="button" id="createBtn" class="btn">Create</button></div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Create Lecture</h3>
+        <form id="createLecture" style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+          <input name="title" placeholder="Topic / Title" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="subject" placeholder="Subject" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="department" placeholder="Department" value="<%= user && user.department ? user.department : '' %>" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="semester" placeholder="Semester" type="number" value="1" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="date" type="date" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <div style="display:flex;gap:8px;"><input name="startTime" placeholder="Start (HH:MM)" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:4px"><input name="endTime" placeholder="End (HH:MM)" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:4px"></div>
+          <div style="text-align:right"><button type="button" id="createLectureBtn" class="btn">Create Lecture</button></div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Mark Attendance</h3>
+        <form id="markAttendance" style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+          <input name="subject" placeholder="Subject" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="department" placeholder="Department" value="<%= user && user.department ? user.department : '' %>" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="semester" placeholder="Semester" type="number" value="1" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <input name="date" type="date" value="<%= new Date().toISOString().slice(0,10) %>" style="padding:8px;border:1px solid #ddd;border-radius:4px">
+          <textarea name="presentIds" placeholder="Present student IDs (comma separated)" style="padding:8px;border:1px solid #ddd;border-radius:4px"></textarea>
+          <div style="text-align:right"><button type="button" id="markAttendanceBtn" class="btn">Mark Attendance</button></div>
         </form>
       </div>
 
@@ -95,6 +123,36 @@
       try{
         const res = await fetch('/faculty/assignments/new', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
         if(res.ok){ alert('Assignment created'); window.location.reload(); } else { const txt = await res.text(); alert('Error: '+txt); }
+      }catch(e){ console.error(e); alert('Network error'); }
+    });
+
+    document.getElementById('createLectureBtn').addEventListener('click', async function(){
+      const form = document.getElementById('createLecture');
+      const data = {
+        title: form.title.value.trim(),
+        subject: form.subject.value.trim(),
+        department: form.department.value.trim(),
+        semester: form.semester.value,
+        date: form.date.value,
+        startTime: form.startTime.value,
+        endTime: form.endTime.value
+      };
+      if(!data.title || !data.subject) { alert('Please fill required fields'); return; }
+      try{
+        const res = await fetch('/faculty/lectures/new', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        if(res.ok){ alert('Lecture created'); window.location.reload(); } else { const txt = await res.text(); alert('Error: '+txt); }
+      }catch(e){ console.error(e); alert('Network error'); }
+    });
+
+    document.getElementById('markAttendanceBtn').addEventListener('click', async function(){
+      const form = document.getElementById('markAttendance');
+      const present = (form.presentIds.value || '').split(',').map(s=>s.trim()).filter(Boolean).map(id=>({ student: id, status: 'Present' }));
+      const payload = { date: form.date.value, subject: form.subject.value.trim(), department: form.department.value.trim(), semester: form.semester.value, records: present };
+      if(!payload.subject){ alert('Subject required'); return; }
+      try{
+        const res = await fetch('/faculty/attendance/records', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if(data && data.success){ alert('Attendance recorded'); form.presentIds.value=''; } else alert('Failed');
       }catch(e){ console.error(e); alert('Network error'); }
     });
   </script>

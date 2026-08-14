@@ -12,7 +12,9 @@
     .app { display: flex; min-height: 100vh; }
     /* sidebar - crude but fine */
     .sidebar { width: 220px; background-color: #1f2937; color: #fff; padding: 18px; }
-    .logo { font-weight: bold; font-size: 18px; margin-bottom: 14px; }
+    .logo { margin-bottom: 14px; display:flex; align-items:center; gap:8px }
+    .site-logo{height:32px;width:auto;display:inline-block}
+    .logo-text{font-weight:bold;font-size:16px;color:#fff}
     .nav { list-style: none; }
     .nav li { margin: 8px 0; }
     .nav a { color: #d1d5db; text-decoration: none; display: block; padding: 8px; border-radius: 6px; }
@@ -65,7 +67,7 @@
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="logo">UniHub — Student</div>
+      <div class="logo"><img src="/logo.png" alt="UniHub" class="site-logo"><span class="logo-text">UniHub — Student</span></div>
       <ul class="nav">
         <li><a href="#dashboard">Dashboard</a></li>
         <li><a href="#attendance">My Attendance</a></li>
@@ -134,6 +136,69 @@
               </tbody>
             </table>
           </div>
+
+          <!-- Today's Lectures -->
+          <div id="lectures" class="card" style="margin-top:12px;">
+            <h3 style="margin-bottom:8px;">Today's Lectures</h3>
+            <% if (lectures && lectures.length) { %>
+              <% lectures.forEach(function(l){ %>
+                <div style="margin-bottom:8px;">
+                  <strong><%= l.subject %></strong> — <span class="muted"><%= l.startTime %> - <%= l.endTime %></span>
+                  <div class="muted">Topic: <%= l.title %> | Faculty: <%= l.faculty && l.faculty.name ? l.faculty.name : 'TBA' %></div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <div class="muted">No lectures scheduled for today.</div>
+            <% } %>
+          </div>
+
+          <!-- Fees Tracker -->
+          <div id="fees" class="card" style="margin-top:12px;">
+            <h3 style="margin-bottom:8px;">Fees</h3>
+            <% if (fee) { %>
+              <div>Total: ₹<%= fee.total %></div>
+              <div>Paid: ₹<%= fee.paid %></div>
+              <div class="muted">Status: <%= fee.status %> | Due: <%= fee.dueDate ? (new Date(fee.dueDate)).toISOString().slice(0,10) : 'N/A' %></div>
+            <% } else { %>
+              <div class="muted">No fee record found. Contact admin.</div>
+            <% } %>
+          </div>
+
+          <!-- Performance Graph -->
+          <div id="performance" class="card" style="margin-top:12px;">
+            <h3 style="margin-bottom:8px;">Performance / Attendance</h3>
+            <div style="padding:8px;">
+              <% const attList = (attendance && attendance.length) ? attendance : []; %>
+              <% if (attList.length) { %>
+                <svg width="100%" height="120" viewBox="0 0 600 120" preserveAspectRatio="xMidYMid meet">
+                  <% attList.forEach(function(a, i){ %>
+                    <% const w = Math.max(4, Math.round((a.percent/100)*420)); %>
+                    <rect x="10" y="<%= 10 + i*28 %>" width="<%= w %>" height="18" fill="#2563eb"></rect>
+                    <text x="440" y="<%= 24 + i*28 %>" font-size="12" fill="#111"><%= a.subject %> - <%= a.percent %>&#37;</text>
+                  <% }) %>
+                </svg>
+              <% } else { %>
+                <div class="muted">Attendance data not available.</div>
+              <% } %>
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div id="results" class="card" style="margin-top:12px;">
+            <h3 style="margin-bottom:8px;">Recent Results</h3>
+            <% if (results && results.length) { %>
+              <table>
+                <thead><tr><th>Subject</th><th>Marks</th><th>Grade</th><th>Date</th></tr></thead>
+                <tbody>
+                <% results.forEach(function(r){ %>
+                  <tr><td><%= r.subject %></td><td><%= r.marks %></td><td><%= r.grade %></td><td><%= r.examDate ? (new Date(r.examDate)).toISOString().slice(0,10) : 'N/A' %></td></tr>
+                <% }) %>
+                </tbody>
+              </table>
+            <% } else { %>
+              <div class="muted">No recent results.</div>
+            <% } %>
+          </div>
         </div>
 
         <aside>
@@ -160,6 +225,48 @@
                 <div style="margin-top:8px;"><button class="btn" style="background:#b45309;" onclick="applyJob('<%= p.id %>')">Apply</button></div>
               </div>
             <% }) %>
+          </div>
+          
+          <!-- Announcements -->
+          <div id="announcements" class="card small-cards" style="margin-top:10px;">
+            <h3 style="margin-bottom:8px;">Announcements</h3>
+            <% if (announcements && announcements.length) { %>
+              <% announcements.forEach(function(a){ %>
+                <div class="event">
+                  <strong><%= a.title || a.message || 'Announcement' %></strong>
+                  <div class="muted"><%= a.createdAt ? (new Date(a.createdAt)).toLocaleString() : '' %></div>
+                  <div class="muted"><%= a.body || a.message || '' %></div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <div class="muted">No announcements</div>
+            <% } %>
+          </div>
+
+          <!-- Timetable Quick View -->
+          <div id="timetable" class="card small-cards" style="margin-top:10px;">
+            <h3 style="margin-bottom:8px;">Weekly Timetable</h3>
+            <% if (timetable && timetable.week && timetable.week.length) { %>
+              <% timetable.week.forEach(function(entry){ %>
+                <div class="event">
+                  <strong><%= entry.day %> — <%= entry.subject %></strong>
+                  <div class="muted"><%= entry.startTime %> - <%= entry.endTime %> | Room: <%= entry.room || 'TBA' %></div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <div class="muted">Timetable not available.</div>
+            <% } %>
+          </div>
+
+          <!-- Leave Application -->
+          <div id="leave" class="card small-cards" style="margin-top:10px;">
+            <h3 style="margin-bottom:8px;">Leave Application</h3>
+            <form id="leaveForm">
+              <div style="margin-bottom:6px;"><label>From</label><input type="date" name="from" id="leaveFrom" style="width:100%"></div>
+              <div style="margin-bottom:6px;"><label>To</label><input type="date" name="to" id="leaveTo" style="width:100%"></div>
+              <div style="margin-bottom:6px;"><label>Reason</label><textarea id="leaveReason" style="width:100%" rows="2"></textarea></div>
+              <div style="text-align:right;"><button type="button" class="btn" onclick="applyLeave()">Apply</button></div>
+            </form>
           </div>
         </aside>
       </section>
@@ -238,6 +345,20 @@
       fetch('/placements/apply', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ placementId: id }) })
         .then(r=> r.ok ? alert('Applied') : alert('Failed to apply'))
         .catch(()=> alert('Network err'));
+    }
+
+    // leave application
+    async function applyLeave(){
+      const from = document.getElementById('leaveFrom').value;
+      const to = document.getElementById('leaveTo').value;
+      const reason = document.getElementById('leaveReason').value.trim();
+      if(!from || !to || !reason){ alert('Please fill all fields'); return; }
+      try{
+        const res = await fetch('/api/student/leave', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from,to,reason }) });
+        const data = await res.json();
+        if(data && data.success){ alert('Leave applied'); document.getElementById('leaveForm').reset(); }
+        else alert('Failed to apply');
+      }catch(err){ console.error(err); alert('Network error'); }
     }
   </script>
 </body>

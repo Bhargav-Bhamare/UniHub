@@ -107,7 +107,7 @@ app.use('/auth', authRoutes);
 
 // Base Route Test
 app.get('/', (req, res) => {
-  res.send("Welcome to UniHub!");
+  res.render('index', { title: 'UniHub' });
 });
 
 const dashboardRoutes = require('./routes/dashboard');
