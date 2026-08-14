@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const passport = require('passport');
+const mongoose = require('mongoose');
 
 // GET: Register Page
 router.get('/register', (req, res) => {
@@ -59,8 +60,9 @@ router.post('/register', async (req, res) => {
     if (newUser.role === 'coordinator') return res.redirect('/coordinator/dashboard');
     return res.redirect('/student/dashboard');
   } catch (error) {
-    console.error('Registration Error:', error);
-    res.status(500).send('Error creating account.');
+    console.error('Registration Error:', error && error.stack ? error.stack : error);
+    if (process.env.DEBUG === 'true') return res.status(500).send('Error creating account: ' + (error && (error.message || error.stack)));
+    return res.status(500).send('Error creating account. Check server logs.');
   }
 });
 
@@ -133,9 +135,18 @@ router.post('/login', async (req, res) => {
     return res.redirect('/student/dashboard');
 
   } catch (error) {
-    console.error('Login Error:', error);
-    res.status(500).send('Error logging in.');
+    console.error('Login Error:', error && error.stack ? error.stack : error);
+    if (process.env.DEBUG === 'true') return res.status(500).send('Error logging in: ' + (error && (error.message || error.stack)));
+    return res.status(500).send('Error logging in. Check server logs.');
   }
+});
+
+// Lightweight debug endpoint for deployment status
+router.get('/debug/status', (req, res) => {
+  try{
+    const dbState = mongoose && mongoose.connection ? mongoose.connection.readyState : null;
+    res.json({ ok: true, env: { nodeEnv: process.env.NODE_ENV || null, googleClientIdPresent: !!process.env.GOOGLE_CLIENT_ID }, dbState, sessionPresent: !!(req && req.session && req.session.user) });
+  }catch(e){ console.error('Debug status error', e); res.status(500).json({ ok:false }); }
 });
 
 // GET: Logout
