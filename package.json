@@ -1,33 +1,74 @@
 {
+
+  "engines": {
+
+    "node": "24.14.1"
+
+  },
+
   "name": "unihub",
+
   "version": "1.0.0",
+
   "description": "A Smart Campus System",
+
   "homepage": "https://github.com/Bhargav-Bhamare/UniHub#readme",
+
   "bugs": {
+
     "url": "https://github.com/Bhargav-Bhamare/UniHub/issues"
+
   },
+
   "repository": {
+
     "type": "git",
+
     "url": "git+https://github.com/Bhargav-Bhamare/UniHub.git"
+
   },
+
   "license": "ISC",
+
   "author": "Bhargav Bhamare",
+
   "type": "commonjs",
+
   "main": "index.js",
+
   "scripts": {
+
     "test": "echo \"Error: no test specified\" && exit 1"
+
   },
+
   "dependencies": {
+
     "bcrypt": "^6.0.0",
+
     "bcryptjs": "^3.0.3",
+
     "connect-mongo": "^6.0.0",
+
     "cookie-parser": "^1.4.7",
+
     "dotenv": "^17.4.2",
+
     "ejs": "^6.0.1",
+
     "express": "^5.2.1",
+
     "express-session": "^1.19.0",
+
+    "mongodb": "^7.5.0",
+
     "mongoose": "^9.9.2",
+
     "passport": "^0.7.0",
+
     "passport-google-oauth20": "^2.0.0"
+
   }
+
 }
+
