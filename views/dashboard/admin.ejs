@@ -53,7 +53,31 @@
           <div class="stat">Users<br><strong><%= statsData.users %></strong></div>
           <div class="stat">Events<br><strong><%= statsData.events %></strong></div>
           <div class="stat">Placements<br><strong><%= statsData.placements %></strong></div>
+          <div class="stat">Pending Events<br><strong><%= typeof pendingEventsCount !== 'undefined' ? pendingEventsCount : 0 %></strong></div>
+          <div class="stat">Pending Leaves<br><strong><%= typeof pendingLeavesCount !== 'undefined' ? pendingLeavesCount : 0 %></strong></div>
         </div>
+      </div>
+
+      <div class="card">
+        <h3>Recent Lectures</h3>
+        <% const rLect = (typeof recentLectures !== 'undefined' && recentLectures) ? recentLectures : []; %>
+        <% if(rLect.length===0){ %>
+          <div class="muted">No recent lectures.</div>
+        <% } %>
+        <% rLect.forEach(l=>{ %>
+          <div style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= l.subject %></strong> — <span class="muted"><%= l.date ? (new Date(l.date)).toISOString().slice(0,10) : '' %></span><div class="muted">Faculty: <%= l.faculty && l.faculty.name ? l.faculty.name : 'TBA' %></div></div>
+        <% }) %>
+      </div>
+
+      <div class="card">
+        <h3>Known Subjects</h3>
+        <% const sList = (typeof subjects !== 'undefined' && subjects) ? subjects : []; %>
+        <% if(sList.length===0){ %>
+          <div class="muted">No subjects found.</div>
+        <% } %>
+        <% sList.forEach(s=>{ %>
+          <div style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= s %></strong></div>
+        <% }) %>
       </div>
       <div class="card">
         <h3>Manage Users</h3>

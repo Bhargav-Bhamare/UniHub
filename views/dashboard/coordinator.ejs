@@ -41,35 +41,121 @@
         </div>
         <div class="muted">Quick actions</div>
       </div>
+      <div class="card">
+        <h3>Pending Leave Requests</h3>
+        <% const leaves = (typeof pendingLeaves !== 'undefined' && pendingLeaves) ? pendingLeaves : []; %>
+        <% if(leaves.length===0){ %>
+          <div class="muted">No pending leave requests.</div>
+        <% } %>
+        <% leaves.forEach(l=>{ %>
+          <div style="padding:8px 0;border-bottom:1px solid #eef2f7;display:flex;justify-content:space-between;align-items:center">
+            <div><strong><%= l.student && l.student.name ? l.student.name : 'Student' %></strong><div class="muted">From: <%= l.from ? (new Date(l.from)).toISOString().slice(0,10) : '' %> — To: <%= l.to ? (new Date(l.to)).toISOString().slice(0,10) : '' %></div></div>
+            <div><button class="btn" onclick="approveLeave('<%= l._id %>')">Approve</button> <button class="btn" style="background:#ef4444" onclick="rejectLeave('<%= l._id %>')">Reject</button></div>
+          </div>
+        <% }) %>
+      </div>
 
       <div class="card">
-        <h3>Pending Approvals</h3>
-        <% const approvalsData = (typeof approvals !== 'undefined' && approvals) ? approvals : [{id:1, type:'Event', title:'Hackathon', requester:'Prof. Sharma'}]; %>
-        <ul class="list">
-          <% approvalsData.forEach(a=>{ %>
-            <li style="padding:8px 0;border-bottom:1px solid #eef2f7"><strong><%= a.title %></strong> — <span class="muted"><%= a.requester %></span>
-              <div style="margin-top:6px"><button class="btn" onclick="approve(<%= a.id %>)">Approve</button> &nbsp; <button class="btn" style="background:#ef4444" onclick="reject(<%= a.id %>)">Reject</button></div>
-            </li>
+        <h3>Pending Event Requests</h3>
+        <% const pendingEvents = (typeof approvals !== 'undefined' && approvals) ? approvals : []; %>
+        <div id="pendingEventsList">
+          <% if(pendingEvents.length===0){ %>
+            <div class="muted">No pending requests.</div>
+          <% } %>
+          <% pendingEvents.forEach(a=>{ %>
+            <div style="padding:8px 0;border-bottom:1px solid #eef2f7;display:flex;justify-content:space-between;align-items:center">
+              <div><strong><%= a.title %></strong><div class="muted">Requested by: <%= a.requester || (a.requestedBy && a.requestedBy.name) || 'N/A' %></div></div>
+              <div>
+                <button class="btn" onclick="approveEvent('<%= a._id || a.id %>')">Approve</button>
+                <button class="btn" style="background:#ef4444" onclick="rejectEvent('<%= a._id || a.id %>')">Reject</button>
+              </div>
+            </div>
           <% }) %>
-        </ul>
+        </div>
       </div>
 
       <div class="card">
         <h3>Manage Events</h3>
-        <% const evsData = (typeof events !== 'undefined' && events) ? events : [{id:1,title:'Workshop', date:'2026-10-01'}]; %>
-        <ul class="list">
-          <% evsData.forEach(e=>{ %>
-            <li style="padding:8px 0;border-bottom:1px solid #eef2f7"><strong><%= e.title %></strong> — <span class="muted"><%= e.date %></span></li>
-          <% }) %>
-        </ul>
+        <% const evsData = (typeof events !== 'undefined' && events) ? events : []; %>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr><th>Title</th><th>Date</th><th>Status</th><th>Assigned Faculty</th><th></th></tr></thead>
+          <tbody>
+            <% evsData.forEach(e=>{ %>
+              <tr style="border-bottom:1px solid #eef2f7;padding:8px 0">
+                <td><%= e.title %></td>
+                <td class="muted"><%= e.eventDate ? (new Date(e.eventDate)).toISOString().slice(0,10) : '' %></td>
+                <td class="muted"><%= e.status || 'approved' %></td>
+                <td class="muted"><%= e.assignedFaculty && e.assignedFaculty.name ? e.assignedFaculty.name : '—' %></td>
+                <td>
+                  <select data-event-id="<%= e._id %>" class="assignSelect">
+                    <option value="">Assign faculty</option>
+                    <% if(typeof faculty !== 'undefined' && faculty) { faculty.forEach(f=>{ %>
+                      <option value="<%= f._id %>"><%= f.name %> — <%= f.department || '' %></option>
+                    <% }) } %>
+                  </select>
+                  <button class="btn assignBtn" data-id="<%= e._id %>">Save</button>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Upcoming Lectures (Next 7 days)</h3>
+        <% const upL = (typeof upcomingLectures !== 'undefined' && upcomingLectures) ? upcomingLectures : []; %>
+        <% if(upL.length===0){ %>
+          <div class="muted">No upcoming lectures.</div>
+        <% } %>
+        <% upL.forEach(l=>{ %>
+          <div style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= l.subject %></strong> — <span class="muted"><%= l.date ? (new Date(l.date)).toISOString().slice(0,10) : '' %> | <%= l.startTime || '' %></span><div class="muted">Faculty: <%= l.faculty && l.faculty.name ? l.faculty.name : 'TBA' %></div></div>
+        <% }) %>
+      </div>
+
+      <div class="card">
+        <h3>Recent Assignments (Dept)</h3>
+        <% const recA = (typeof recentAssignments !== 'undefined' && recentAssignments) ? recentAssignments : []; %>
+        <% if(recA.length===0){ %>
+          <div class="muted">No recent assignments.</div>
+        <% } %>
+        <% recA.forEach(a=>{ %>
+          <div style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= a.title %></strong> — <span class="muted"><%= a.subject %> | Created: <%= a.createdAt ? (new Date(a.createdAt)).toISOString().slice(0,10) : '' %></span></div>
+        <% }) %>
+      </div>
+
+      <div class="card">
+        <h3>Subjects in Dept</h3>
+        <% const subs = (typeof subjects !== 'undefined' && subjects) ? subjects : []; %>
+        <% if(subs.length===0){ %>
+          <div class="muted">No subjects found.</div>
+        <% } %>
+        <% subs.forEach(s=>{ %>
+          <div style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= s %></strong></div>
+        <% }) %>
       </div>
     </main>
   </div>
 
   <script>
-    // quick handlers - backend endpoints not wired here by default
-    function approve(id){ fetch('/coordinator/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}).then(r=> r.ok ? alert('Approved') : alert('Failed')) }
-    function reject(id){ fetch('/coordinator/reject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}).then(r=> r.ok ? alert('Rejected') : alert('Failed')) }
+    // coordinator actions
+    async function approveEvent(id){
+      try{ const res = await fetch('/coordinator/events/'+id+'/approve',{method:'POST'}); const j = await res.json(); if(j.success) { alert('Approved'); location.reload(); } else alert('Failed'); }catch(e){alert('Error')}
+    }
+    async function rejectEvent(id){ try{ const res = await fetch('/coordinator/events/'+id+'/reject',{method:'POST'}); const j = await res.json(); if(j.success) { alert('Rejected'); location.reload(); } else alert('Failed'); }catch(e){alert('Error')} }
+
+    // Assign faculty to event
+    document.querySelectorAll('.assignBtn').forEach(btn=>{
+      btn.addEventListener('click', async (ev)=>{
+        const id = btn.dataset.id;
+        const sel = document.querySelector('select[data-event-id="'+id+'"]');
+        const facultyId = sel.value;
+        if(!facultyId) return alert('Select a faculty to assign');
+        try{ const res = await fetch('/coordinator/events/'+id+'/assign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ facultyId })}); const j=await res.json(); if(j.success) { alert('Assigned'); location.reload(); } else alert('Failed'); }catch(e){alert('Error')}
+      });
+    });
+
+    // Leave approvals
+    async function approveLeave(id){ try{ const res = await fetch('/coordinator/leave/'+id+'/approve',{method:'POST'}); const j=await res.json(); if(j.success){ alert('Leave approved'); location.reload(); } else alert('Failed'); }catch(e){alert('Error')} }
+    async function rejectLeave(id){ try{ const res = await fetch('/coordinator/leave/'+id+'/reject',{method:'POST'}); const j=await res.json(); if(j.success){ alert('Leave rejected'); location.reload(); } else alert('Failed'); }catch(e){alert('Error')} }
   </script>
 </body>
 </html>

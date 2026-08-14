@@ -57,7 +57,15 @@ router.get('/student/dashboard', isAuthenticated, authorizeRoles('student'), asy
     // announcements (fall back to notifications)
     const announcements = await Notification.find({ $or: [{ department: user.department }, { user: user.id }, { type: 'announcement' }] }).sort({ createdAt: -1 }).limit(8).lean();
 
-    res.render('dashboard/student', { title: 'Student Dashboard - UniHub', user, assignments, events, placements, attendance, lectures, fee, results, timetable, announcements });
+    // subjects from assignments and lectures
+    const assignSubjects = await Assignment.distinct('subject', { department: user.department });
+    const lectureSubjects = await Lecture.distinct('subject', { department: user.department });
+    const subjects = Array.from(new Set([...(assignSubjects || []), ...(lectureSubjects || [])])).filter(Boolean);
+
+    // upcoming events
+    const upcomingEvents = await Event.find({ eventDate: { $gte: new Date() } }).sort({ eventDate: 1 }).limit(8).lean();
+
+    res.render('dashboard/student', { title: 'Student Dashboard - UniHub', user, assignments, events: upcomingEvents, placements, attendance, lectures, fee, results, timetable, announcements, subjects });
   } catch (err) {
     console.error('Student dashboard error:', err);
     res.render('dashboard/student', { title: 'Student Dashboard - UniHub', user: req.session.user });
@@ -72,7 +80,14 @@ router.get('/faculty/dashboard', isAuthenticated, authorizeRoles('faculty'), asy
     const assignmentIds = assignments.map(a => a._id);
     const submissions = await Submission.find({ assignment: { $in: assignmentIds } }).populate('student').sort({ createdAt: -1 }).limit(8).lean();
     const subs = submissions.map(s => ({ studentName: s.student && s.student.name ? s.student.name : 'Student', assignment: (s.assignment && s.assignment.title) ? s.assignment.title : String(s.assignment), status: s.status }));
-    res.render('dashboard/faculty', { title: 'Faculty Dashboard - UniHub', user, assignments, submissions: subs });
+    // upcoming lectures and subjects for faculty
+    const now = new Date();
+    const weekAhead = new Date(); weekAhead.setDate(now.getDate() + 7);
+    const upcomingLectures = await Lecture.find({ faculty: user.id, date: { $gte: now, $lte: weekAhead } }).sort({ date: 1, startTime: 1 }).lean();
+    const subjects = await Assignment.distinct('subject', { faculty: user.id });
+    const upcomingEvents = await Event.find({ eventDate: { $gte: new Date() } }).sort({ eventDate: 1 }).limit(6).lean();
+
+    res.render('dashboard/faculty', { title: 'Faculty Dashboard - UniHub', user, assignments, submissions: subs, upcomingLectures, subjects, upcomingEvents });
   } catch (err) {
     console.error('Faculty dashboard error:', err);
     res.render('dashboard/faculty', { title: 'Faculty Dashboard - UniHub', user: req.session.user });
@@ -112,11 +127,76 @@ router.get('/coordinator/dashboard', isAuthenticated, authorizeRoles('coordinato
     const user = req.session.user;
     const events = await Event.find({}).sort({ eventDate: 1 }).limit(8).lean();
     const approvals = [{ id: 1, type: 'Event', title: 'Hackathon', requester: 'Prof. Sharma' }];
-    res.render('dashboard/coordinator', { title: 'Coordinator Dashboard - UniHub', user, events, approvals });
+    // additional coordinator overview: subjects, upcoming lectures, recent assignments
+    const assignSubjects = await Assignment.distinct('subject', { department: user.department });
+    const lectureSubjects = await Lecture.distinct('subject', { department: user.department });
+    const subjects = Array.from(new Set([...(assignSubjects || []), ...(lectureSubjects || [])])).filter(Boolean);
+    const now = new Date();
+    const weekAhead = new Date(); weekAhead.setDate(now.getDate() + 7);
+    const upcomingLectures = await Lecture.find({ department: user.department, date: { $gte: now, $lte: weekAhead } }).sort({ date: 1 }).populate('faculty','name').lean();
+    const recentAssignments = await Assignment.find({ department: user.department }).sort({ createdAt: -1 }).limit(12).lean();
+    res.render('dashboard/coordinator', { title: 'Coordinator Dashboard - UniHub', user, events, approvals, subjects, upcomingLectures, recentAssignments });
   } catch (err) {
     console.error('Coordinator dashboard error:', err);
     res.render('dashboard/coordinator', { title: 'Coordinator Dashboard - UniHub', user: req.session.user });
   }
+});
+
+// Coordinator: list pending requests (events, leave)
+router.get('/coordinator/requests', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
+  try {
+    const pendingEvents = await Event.find({ status: 'pending' }).populate('requestedBy','name email').sort({ createdAt: -1 }).lean();
+    const pendingLeaves = await LeaveRequest.find({ status: 'pending' }).populate('student','name email department rollNumber').sort({ appliedAt: -1 }).lean();
+    res.json({ success: true, pendingEvents, pendingLeaves });
+  } catch (err) {
+    console.error('Coordinator requests error:', err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Coordinator: events management view
+router.get('/coordinator/events', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
+  try {
+    const user = req.session.user;
+    const events = await Event.find({}).sort({ eventDate: 1 }).populate('assignedFaculty','name').lean();
+    const faculty = await User.find({ role: 'faculty' }).select('name email department').lean();
+    const pendingEvents = await Event.find({ status: 'pending' }).populate('requestedBy','name email').sort({ createdAt: -1 }).lean();
+    const pendingLeaves = await LeaveRequest.find({ status: 'pending' }).populate('student','name email department rollNumber').sort({ appliedAt: -1 }).lean();
+    res.render('dashboard/coordinator', { title: 'Manage Events - Coordinator', user, events, approvals: pendingEvents, faculty, pendingLeaves });
+  } catch (err) {
+    console.error('Coordinator events page error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+// Approve / reject event requests
+router.post('/coordinator/events/:id/approve', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
+  try {
+    const id = req.params.id;
+    await Event.findByIdAndUpdate(id, { status: 'approved' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ success:false }); }
+});
+router.post('/coordinator/events/:id/reject', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
+  try { const id = req.params.id; await Event.findByIdAndUpdate(id, { status: 'rejected' }); res.json({ success:true }); } catch(err){ console.error(err); res.status(500).json({ success:false }); }
+});
+
+// Assign faculty to event
+router.post('/coordinator/events/:id/assign', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { facultyId } = req.body;
+    await Event.findByIdAndUpdate(id, { assignedFaculty: facultyId });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ success:false }); }
+});
+
+// Approve / reject leave requests
+router.post('/coordinator/leave/:id/approve', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
+  try { const id = req.params.id; await LeaveRequest.findByIdAndUpdate(id, { status: 'approved' }); res.json({ success:true }); } catch(err){ console.error(err); res.status(500).json({ success:false }); }
+});
+router.post('/coordinator/leave/:id/reject', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
+  try { const id = req.params.id; await LeaveRequest.findByIdAndUpdate(id, { status: 'rejected' }); res.json({ success:true }); } catch(err){ console.error(err); res.status(500).json({ success:false }); }
 });
 
 // Admin Dashboard
@@ -131,7 +211,13 @@ router.get('/admin/dashboard', isAuthenticated, authorizeRoles('admin'), async (
       events: await Event.countDocuments(),
       placements: await Placement.countDocuments(),
     };
-    res.render('dashboard/admin', { title: 'Admin Dashboard', placements, events, users, stats, user: req.session.user });
+    // additional admin overview data
+    const subjects = await Assignment.distinct('subject');
+    const recentLectures = await Lecture.find({}).sort({ date: -1 }).limit(12).populate('faculty','name').lean();
+    const pendingEventsCount = await Event.countDocuments({ status: 'pending' });
+    const pendingLeavesCount = await LeaveRequest.countDocuments({ status: 'pending' });
+
+    res.render('dashboard/admin', { title: 'Admin Dashboard', placements, events, users, stats, user: req.session.user, subjects, recentLectures, pendingEventsCount, pendingLeavesCount });
   } catch (err) {
     console.error(err);
     res.status(500).send('Server error');
@@ -388,11 +474,24 @@ router.get('/api/student/lectures', isAuthenticated, authorizeRoles('student'), 
 router.post('/events/new', isAuthenticated, authorizeRoles('coordinator','admin'), async (req, res) => {
   try {
     const { title, description, eventDate, location } = req.body;
-    const e = new Event({ title, description, eventDate, location, createdBy: req.session.user.id });
+    const e = new Event({ title, description, eventDate, location, createdBy: req.session.user.id, status: 'approved' });
     await e.save();
     res.json({ success: true, event: e });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Propose an event (students/faculty) -> creates pending event for coordinator approval
+router.post('/events/propose', isAuthenticated, authorizeRoles('faculty','student'), async (req, res) => {
+  try {
+    const { title, description, eventDate, location } = req.body;
+    const e = new Event({ title, description, eventDate, location, createdBy: req.session.user.id, status: 'pending', requestedBy: req.session.user.id });
+    await e.save();
+    res.json({ success: true, event: e });
+  } catch (err) {
+    console.error('Propose event error:', err);
     res.status(500).json({ success: false });
   }
 });

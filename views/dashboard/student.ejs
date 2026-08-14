@@ -206,13 +206,13 @@
           <div id="events" class="card small-cards">
             <h3 style="margin-bottom:8px;">Campus Events</h3>
             <% const eventsData = (typeof events !== 'undefined' && events.length) ? events : [{id:1, title:'Tech Fest', date:'2026-09-03', place:'Auditorium'}]; %>
-            <% eventsData.forEach(function(ev){ %>
-              <div class="event">
-                <h4><%= ev.title %></h4>
-                <div class="muted">When: <%= ev.date %> &middot; Where: <%= ev.place || 'Campus' %></div>
-                <div style="margin-top:8px;"><button class="btn" style="background:#059669;" onclick="registerEvent('<%= ev.id %>')">Register</button></div>
-              </div>
-            <% }) %>
+              <% eventsData.forEach(function(ev){ %>
+                <div class="event">
+                  <h4><%= ev.title %></h4>
+                  <div class="muted">When: <%= ev.eventDate ? (new Date(ev.eventDate)).toISOString().slice(0,10) : (ev.date || 'TBD') %> &middot; Where: <%= ev.venue || ev.location || ev.place || 'Campus' %></div>
+                  <div style="margin-top:8px;"><button class="btn" style="background:#059669;" onclick="registerEvent('<%= ev._id || ev.id %>')">Register</button></div>
+                </div>
+              <% }) %>
           </div>
 
           <div id="placements" class="card small-cards" style="margin-top:10px;">
@@ -255,6 +255,19 @@
               <% }) %>
             <% } else { %>
               <div class="muted">Timetable not available.</div>
+            <% } %>
+          </div>
+
+          <!-- Subjects Quick List -->
+          <div id="subjects" class="card small-cards" style="margin-top:10px;">
+            <h3 style="margin-bottom:8px;">Subjects</h3>
+            <% const subjectsList = (typeof subjects !== 'undefined' && subjects && subjects.length) ? subjects : []; %>
+            <% if(subjectsList.length){ %>
+              <% subjectsList.forEach(function(s){ %>
+                <div class="event"><strong><%= s %></strong></div>
+              <% }) %>
+            <% } else { %>
+              <div class="muted">No subjects found.</div>
             <% } %>
           </div>
 

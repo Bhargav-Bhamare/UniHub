@@ -106,6 +106,39 @@
           <% }) %>
         </ul>
       </div>
+      
+      <div class="card">
+        <h3>Upcoming Lectures (7 days)</h3>
+        <% const upLects = (typeof upcomingLectures !== 'undefined' && upcomingLectures) ? upcomingLectures : []; %>
+        <% if(upLects.length===0){ %>
+          <div class="muted">No lectures scheduled in the next 7 days.</div>
+        <% } %>
+        <% upLects.forEach(l=>{ %>
+          <div style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= l.subject %></strong> — <span class="muted"><%= l.date ? (new Date(l.date)).toISOString().slice(0,10) : '' %> <%= l.startTime ? (' ' + l.startTime) : '' %></span><div class="muted">Topic: <%= l.title %></div></div>
+        <% }) %>
+      </div>
+
+      <div class="card">
+        <h3>My Subjects</h3>
+        <% const subjList = (typeof subjects !== 'undefined' && subjects) ? subjects : []; %>
+        <% if(subjList.length===0) { %>
+          <div class="muted">No subjects found.</div>
+        <% } %>
+        <% subjList.forEach(s=>{ %>
+          <div style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= s %></strong></div>
+        <% }) %>
+      </div>
+
+      <div class="card">
+        <h3>Upcoming Campus Events</h3>
+        <% const upE = (typeof upcomingEvents !== 'undefined' && upcomingEvents) ? upcomingEvents : []; %>
+        <% if(upE.length===0){ %>
+          <div class="muted">No upcoming events.</div>
+        <% } %>
+        <% upE.forEach(ev=>{ %>
+          <div style="padding:6px 0;border-bottom:1px solid #eef2f7"><strong><%= ev.title %></strong> — <span class="muted"><%= ev.eventDate ? (new Date(ev.eventDate)).toISOString().slice(0,10) : '' %></span></div>
+        <% }) %>
+      </div>
     </main>
   </div>
   <script>
