@@ -26,11 +26,12 @@
   <div class="app">
     <aside class="sidebar">
       <div class="logo"><img src="/logo.png" alt="UniHub" class="site-logo"><span class="logo-text">UniHub - Coord</span></div>
-      <nav class="nav">
-        <a href="/coordinator/dashboard">Overview</a>
-        <a href="/coordinator/events">Manage Events</a>
-        <a href="/coordinator/requests">Approvals</a>
-        <a href="/auth/logout">Logout</a>
+      <nav class="nav flex flex-col">
+        <a href="/coordinator/dashboard" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1">Overview</a>
+        <a href="/coordinator/events" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1">Manage Events</a>
+        <a href="/coordinator/requests" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1">Approvals</a>
+        <a href="/coordinator/events" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1">Assign Faculty</a>
+        <a href="/auth/logout" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1;margin-top:8px">Logout</a>
       </nav>
     </aside>
 
@@ -157,6 +158,19 @@
     // Leave approvals
     async function approveLeave(id){ try{ const res = await fetch('/coordinator/leave/'+id+'/approve',{method:'POST'}); const j=await res.json(); if(j.success){ alert('Leave approved'); location.reload(); } else alert('Failed'); }catch(e){alert('Error')} }
     async function rejectLeave(id){ try{ const res = await fetch('/coordinator/leave/'+id+'/reject',{method:'POST'}); const j=await res.json(); if(j.success){ alert('Leave rejected'); location.reload(); } else alert('Failed'); }catch(e){alert('Error')} }
+  </script>
+  <script>
+    // highlight active nav link for coordinator
+    (function(){
+      try{
+        const path = window.location.pathname;
+        document.querySelectorAll('.nav-link').forEach(a=>{
+          if(a.getAttribute('href')===path || path.startsWith(a.getAttribute('href'))){
+            a.style.background = '#0ea5a3'; a.style.color='#fff'; a.style.borderRadius='6px';
+          }
+        });
+      }catch(e){}
+    })();
   </script>
 </body>
 </html>

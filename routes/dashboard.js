@@ -127,6 +127,37 @@ router.get('/faculty/assignments/new', isAuthenticated, authorizeRoles('faculty'
   }
 });
 
+// Faculty: lectures listing page
+router.get('/faculty/lectures', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
+  try {
+    const user = req.session.user;
+    // show all lectures for this faculty (past and upcoming)
+    const lectures = await Lecture.find({ faculty: user.id }).sort({ date: -1 }).lean();
+    const assignments = await Assignment.find({ faculty: user.id }).sort({ createdAt: -1 }).lean();
+    const submissions = [];
+    res.render('dashboard/faculty', { title: 'My Lectures - UniHub', user, assignments, submissions, upcomingLectures: lectures, subjects: [] , upcomingEvents: [] });
+  } catch (err) {
+    console.error('Faculty lectures page error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+// Faculty: view submissions for a specific assignment
+router.get('/faculty/assignments/:id/submissions', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
+  try {
+    const user = req.session.user;
+    const assignmentId = req.params.id;
+    const assignments = await Assignment.find({ faculty: user.id }).sort({ createdAt: -1 }).lean();
+    const submissions = await Submission.find({ assignment: assignmentId }).populate('student').sort({ createdAt: -1 }).lean();
+    // normalize submissions for the template
+    const subs = submissions.map(s => ({ studentName: s.student && s.student.name ? s.student.name : 'Student', assignment: (s.assignment && s.assignment.title) ? s.assignment.title : String(s.assignment), status: s.status }));
+    res.render('dashboard/faculty', { title: 'Assignment Submissions - UniHub', user, assignments, submissions: subs });
+  } catch (err) {
+    console.error('Assignment submissions page error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
 // Coordinator Dashboard
 router.get('/coordinator/dashboard', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
   try {

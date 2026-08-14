@@ -101,9 +101,24 @@ app.use((req, res, next) => {
   next();
 });
 
+// Passport (for Google OAuth)
+const passport = require('passport');
+try{
+  require('./config/passport')(passport);
+  app.use(passport.initialize());
+  app.use(passport.session());
+}catch(e){ console.warn('Passport not configured:', e.message); }
+
 // Routes
 const authRoutes = require('./routes/auth');
 app.use('/auth', authRoutes);
+
+// When behind a proxy (Render), trust proxy so secure cookies and IPs work
+if (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
+  app.set('trust proxy', 1);
+  // ensure cookies are marked secure when using HTTPS
+  if (sessionOptions && sessionOptions.cookie) sessionOptions.cookie.secure = true;
+}
 
 // Base Route Test
 app.get('/', (req, res) => {

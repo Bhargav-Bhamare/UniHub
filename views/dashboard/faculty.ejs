@@ -26,10 +26,13 @@
   <div class="app">
     <aside class="sidebar">
       <div class="logo"><img src="/logo.png" alt="UniHub" class="site-logo"><span class="logo-text">UniHub - Faculty</span></div>
-      <nav>
-        <a href="/faculty/dashboard" style="color:#cbd5e1;display:block;padding:8px;text-decoration:none">Overview</a>
-        <a href="/faculty/assignments" style="color:#cbd5e1;display:block;padding:8px;text-decoration:none">Assignments</a>
-        <a href="/auth/logout" style="color:#cbd5e1;display:block;padding:8px;text-decoration:none">Logout</a>
+      <nav class="flex flex-col">
+        <a href="/faculty/dashboard" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1">Overview</a>
+        <a href="/faculty/assignments" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1">Assignments</a>
+        <a href="/faculty/assignments/new" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1">New Assignment</a>
+        <a href="/faculty/lectures" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1">Lectures</a>
+        <a href="/faculty/dashboard#attendance" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1">Attendance</a>
+        <a href="/auth/logout" class="nav-link" style="display:block;padding:10px 8px;text-decoration:none;color:#cbd5e1;margin-top:8px">Logout</a>
       </nav>
     </aside>
 
@@ -71,7 +74,7 @@
       <div class="card">
         <h3>Mark Attendance (by Lecture)</h3>
         <div style="margin-top:8px;">
-          <% const lects = (typeof assignments !== 'undefined' && upcomingLectures) ? upcomingLectures : (typeof upcomingLectures !== 'undefined' ? upcomingLectures : []); %>
+          <% const lects = (typeof upcomingLectures !== 'undefined' && upcomingLectures) ? upcomingLectures : []; %>
           <% if(lects.length===0){ %>
             <div class="muted">No upcoming lectures to mark attendance.</div>
           <% } %>
@@ -105,7 +108,7 @@
                 <td><%= a.title %></td>
                 <td><%= a.subject %></td>
                 <td><%= a.dueDate %></td>
-                <td><a class="btn" href="/faculty/assignments/<%= a.id %>/submissions">Submissions</a></td>
+                <td><a class="btn" href="/faculty/assignments/<%= a._id || a.id %>/submissions">Submissions</a></td>
               </tr>
             <% }) %>
           </tbody>
@@ -157,6 +160,32 @@
     </main>
   </div>
   <script>
+    // highlight active nav link
+    (function(){
+      try{
+        const path = window.location.pathname;
+        document.querySelectorAll('.nav-link').forEach(a=>{
+          if(a.getAttribute('href')===path || path.startsWith(a.getAttribute('href'))){
+            a.style.background = '#0ea5a3'; a.style.color='#fff'; a.style.borderRadius='6px';
+          }
+        });
+      }catch(e){}
+    })();
+    // ensure nav links navigate even if some other script stops default
+    (function(){
+      try{
+        document.querySelectorAll('.nav-link').forEach(a=>{
+          a.addEventListener('click', function(e){
+            const href = a.getAttribute('href');
+            if(!href) return;
+            // if it's a hash for same-page, let it be
+            if(href.startsWith('#')) return;
+            // fallback navigation to bypass any preventDefault elsewhere
+            setTimeout(()=>{ window.location.href = href; }, 10);
+          });
+        });
+      }catch(e){}
+    })();
     document.getElementById('createBtn').addEventListener('click', async function(){
       const form = document.getElementById('createAssignment');
       const data = {
