@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= title %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Tahoma, Geneva, sans-serif;background:#f3f4f6;color:#222}
@@ -33,12 +34,12 @@
     </aside>
 
     <main class="main">
-      <div class="topbar">
+      <div class="topbar bg-white rounded-lg shadow p-4 flex items-center justify-between">
         <div>
-          <div><strong><%= user && user.name ? user.name : 'Faculty' %></strong></div>
-          <div class="muted">Dept: <%= user && user.department ? user.department : 'N/A' %></div>
+          <div class="text-2xl font-semibold text-gray-800"><%= user && user.name ? user.name : 'Faculty' %></div>
+          <div class="text-sm text-gray-500">Dept: <%= user && user.department ? user.department : 'N/A' %></div>
         </div>
-        <div><a class="btn" href="/faculty/assignments/new">Create Assignment</a></div>
+        <div><a class="px-3 py-2 rounded bg-blue-600 text-white" href="/faculty/assignments/new">Create Assignment</a></div>
       </div>
 
       <div class="card">
@@ -68,15 +69,29 @@
       </div>
 
       <div class="card">
-        <h3>Mark Attendance</h3>
-        <form id="markAttendance" style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
-          <input name="subject" placeholder="Subject" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
-          <input name="department" placeholder="Department" value="<%= user && user.department ? user.department : '' %>" required style="padding:8px;border:1px solid #ddd;border-radius:4px">
-          <input name="semester" placeholder="Semester" type="number" value="1" style="padding:8px;border:1px solid #ddd;border-radius:4px">
-          <input name="date" type="date" value="<%= new Date().toISOString().slice(0,10) %>" style="padding:8px;border:1px solid #ddd;border-radius:4px">
-          <textarea name="presentIds" placeholder="Present student IDs (comma separated)" style="padding:8px;border:1px solid #ddd;border-radius:4px"></textarea>
-          <div style="text-align:right"><button type="button" id="markAttendanceBtn" class="btn">Mark Attendance</button></div>
-        </form>
+        <h3>Mark Attendance (by Lecture)</h3>
+        <div style="margin-top:8px;">
+          <% const lects = (typeof assignments !== 'undefined' && upcomingLectures) ? upcomingLectures : (typeof upcomingLectures !== 'undefined' ? upcomingLectures : []); %>
+          <% if(lects.length===0){ %>
+            <div class="muted">No upcoming lectures to mark attendance.</div>
+          <% } %>
+          <% lects.forEach(l=>{ %>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eef2f7">
+              <div><strong><%= l.subject %></strong> <div class="muted"><%= l.date ? (new Date(l.date)).toISOString().slice(0,10) : '' %> &middot; <%= l.startTime || '' %></div></div>
+              <div><button class="btn" onclick="openAttendance('<%= l._id %>','<%= l.department %>','<%= l.semester %>')">Mark</button></div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <!-- Attendance Modal -->
+      <div id="attModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);align-items:center;justify-content:center">
+        <div style="background:#fff;padding:16px;border-radius:8px;width:520px;max-width:96%">
+          <h3>Mark Attendance</h3>
+          <div id="attLectureInfo" class="muted"></div>
+          <div id="attStudents" style="margin-top:12px;max-height:320px;overflow:auto"></div>
+          <div style="text-align:right;margin-top:10px"><button id="saveAttendanceBtn" class="btn">Save</button> <button onclick="closeAttModal()" class="btn" style="background:#ef4444">Cancel</button></div>
+        </div>
       </div>
 
       <div class="card">
@@ -177,15 +192,42 @@
       }catch(e){ console.error(e); alert('Network error'); }
     });
 
-    document.getElementById('markAttendanceBtn').addEventListener('click', async function(){
-      const form = document.getElementById('markAttendance');
-      const present = (form.presentIds.value || '').split(',').map(s=>s.trim()).filter(Boolean).map(id=>({ student: id, status: 'Present' }));
-      const payload = { date: form.date.value, subject: form.subject.value.trim(), department: form.department.value.trim(), semester: form.semester.value, records: present };
-      if(!payload.subject){ alert('Subject required'); return; }
+    // Attendance modal interactions
+    let currentLectureId = null;
+    async function openAttendance(lectureId, dept, sem){
+      currentLectureId = lectureId;
+      document.getElementById('attLectureInfo').innerText = 'Lecture ID: ' + lectureId;
+      document.getElementById('attStudents').innerHTML = 'Loading...';
+      document.getElementById('attModal').style.display = 'flex';
       try{
-        const res = await fetch('/faculty/attendance/records', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-        const data = await res.json();
-        if(data && data.success){ alert('Attendance recorded'); form.presentIds.value=''; } else alert('Failed');
+        const res = await fetch('/faculty/lectures/'+lectureId+'/students');
+        const j = await res.json(); if(!j.success){ document.getElementById('attStudents').innerText = 'Failed to load students'; return; }
+        const students = j.students || [];
+        const container = document.getElementById('attStudents'); container.innerHTML = '';
+        students.forEach(s => {
+          const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.padding='8px 0'; row.style.borderBottom='1px solid #eef2f7';
+          row.dataset.id = s._id; // embed student id for reliable mapping when saving
+          row.innerHTML = `<div><strong>${s.name}</strong><div class="muted">${s.rollNumber||''}</div></div>`;
+          const ctrl = document.createElement('div');
+          const presentBtn = document.createElement('button'); presentBtn.className='btn'; presentBtn.style.background='#10b981'; presentBtn.innerText='Present';
+          const absentBtn = document.createElement('button'); absentBtn.className='btn'; absentBtn.style.background='#ef4444'; absentBtn.style.marginLeft='8px'; absentBtn.innerText='Absent';
+          presentBtn.addEventListener('click', ()=>{ presentBtn.style.opacity='1'; absentBtn.style.opacity='0.5'; presentBtn.dataset.state='present'; absentBtn.dataset.state=''; row.dataset.status='Present'; });
+          absentBtn.addEventListener('click', ()=>{ absentBtn.style.opacity='1'; presentBtn.style.opacity='0.5'; absentBtn.dataset.state='absent'; presentBtn.dataset.state=''; row.dataset.status='Absent'; });
+          ctrl.appendChild(presentBtn); ctrl.appendChild(absentBtn); row.appendChild(ctrl);
+          container.appendChild(row);
+        });
+      }catch(e){ console.error(e); document.getElementById('attStudents').innerText='Error'; }
+    }
+
+    function closeAttModal(){ document.getElementById('attModal').style.display='none'; currentLectureId=null; }
+
+    document.getElementById('saveAttendanceBtn').addEventListener('click', async ()=>{
+      if(!currentLectureId) return;
+      const rows = Array.from(document.getElementById('attStudents').children);
+      const finalRecords = rows.map(r => ({ student: r.dataset.id, status: r.dataset.status || 'Absent' }));
+      try{
+        const res = await fetch('/faculty/lectures/'+currentLectureId+'/attendance', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ records: finalRecords }) });
+        const j = await res.json(); if(j.success){ alert('Attendance saved'); closeAttModal(); } else alert('Failed to save');
       }catch(e){ console.error(e); alert('Network error'); }
     });
   </script>

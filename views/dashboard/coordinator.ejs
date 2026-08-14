@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= title %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Verdana, Geneva, sans-serif;background:#f7f9fb;color:#222}
@@ -34,12 +35,12 @@
     </aside>
 
     <main class="main">
-      <div class="topbar">
+      <div class="topbar bg-white rounded-lg shadow p-4 flex items-center justify-between">
         <div>
-          <div><strong><%= user && user.name ? user.name : 'Coordinator' %></strong></div>
-          <div class="muted">Dept: <%= user && user.department ? user.department : 'N/A' %></div>
+          <div class="text-2xl font-semibold text-gray-800"><%= user && user.name ? user.name : 'Coordinator' %></div>
+          <div class="text-sm text-gray-500">Dept: <%= user && user.department ? user.department : 'N/A' %></div>
         </div>
-        <div class="muted">Quick actions</div>
+        <div class="text-sm text-gray-500">Quick actions</div>
       </div>
       <div class="card">
         <h3>Pending Leave Requests</h3>

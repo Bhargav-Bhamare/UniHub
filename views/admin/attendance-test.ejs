@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Attendance Test</title>
+  <style>body{font-family:Arial;padding:18px} .row{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eee} .btn{padding:6px 8px;border-radius:6px;border:none;color:#fff} .present{background:#10b981}.absent{background:#ef4444}</style>
+</head>
+<body>
+  <h2>Attendance Test (Admin)</h2>
+  <div id="list">
+    <% const students = (typeof students !== 'undefined' && students) ? students : []; %>
+    <% students.forEach(s=>{ %>
+      <div class="row" data-id="<%= s._id %>">
+        <div><strong><%= s.name %></strong> <div style="font-size:12px;color:#666"><%= s.rollNumber || '' %> — <%= s.department || '' %> / Sem <%= s.semester || '' %></div></div>
+        <div>
+          <button class="btn present">Present</button>
+          <button class="btn absent">Absent</button>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+  <div style="margin-top:12px"><button id="save" class="btn present">Save Attendance</button></div>
+  <script>
+    document.querySelectorAll('.row').forEach(r=>{
+      const present = r.querySelector('.present'); const absent = r.querySelector('.absent');
+      present.addEventListener('click', ()=>{ r.dataset.status='Present'; present.style.opacity='1'; absent.style.opacity='0.4'; });
+      absent.addEventListener('click', ()=>{ r.dataset.status='Absent'; absent.style.opacity='1'; present.style.opacity='0.4'; });
+    });
+    document.getElementById('save').addEventListener('click', async ()=>{
+      const rows = Array.from(document.querySelectorAll('.row'));
+      const records = rows.map(r=>({ student: r.dataset.id, status: r.dataset.status || 'Absent' }));
+      const res = await fetch('/admin/attendance-test/save',{method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify({ records })});
+      const j = await res.json(); if(j.success) alert('Saved'); else alert('Failed');
+    });
+  </script>
+</body>
+</html>

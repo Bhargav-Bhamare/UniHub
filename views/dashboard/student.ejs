@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= title %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     /* basic body styling - keep it simple like a human would */
@@ -78,13 +79,16 @@
     </aside>
 
     <main class="main">
-      <div class="topbar">
-        <div class="user-info">
-          <div>Welcome, <strong><%= user && user.name ? user.name : 'Student' %></strong></div>
-          <div class="muted">Department: <%= user && user.department ? user.department : 'N/A' %></div>
-        </div>
+      <div class="topbar bg-white rounded-lg shadow p-4 flex items-center justify-between">
         <div>
-          <a class="logout" href="/auth/logout">Logout</a>
+          <div class="text-2xl font-bold text-gray-800">Hello, <%= user && user.name ? user.name : 'Student' %></div>
+          <div class="text-sm text-gray-500">Department: <%= user && user.department ? user.department : 'N/A' %></div>
+        </div>
+        <div class="flex items-center gap-3">
+          <% if(user && user.role==='student'){ %>
+            <button id="seedTestData" class="px-3 py-2 rounded bg-emerald-600 text-white text-sm">Seed Test Data</button>
+          <% } %>
+          <a class="text-sm text-red-600 font-medium" href="/auth/logout">Logout</a>
         </div>
       </div>
 
@@ -320,6 +324,15 @@
         var p = el.getAttribute('data-percent') || '0';
         el.style.width = p + '%';
       });
+      const btn = document.getElementById('seedTestData');
+      if(btn){ btn.addEventListener('click', async ()=>{
+          btn.disabled = true; btn.innerText = 'Seeding...';
+          try{
+            const res = await fetch('/api/seed/sample-data', { method: 'POST' });
+            const j = await res.json();
+            if(j && j.success){ alert('Seeded sample fee/results'); window.location.reload(); } else { alert('Failed: '+(j && j.message)?j.message:'Unknown'); btn.disabled=false; btn.innerText='Seed Test Data'; }
+          }catch(e){ console.error(e); alert('Network error'); btn.disabled=false; btn.innerText='Seed Test Data'; }
+      }); }
     });
 
     async function submitAssignment(){
@@ -373,6 +386,46 @@
         else alert('Failed to apply');
       }catch(err){ console.error(err); alert('Network error'); }
     }
+
+    // Fetch unread notifications and show simple popups
+    async function fetchNotifications(){
+      try{
+        const res = await fetch('/api/notifications/unread');
+        if(!res.ok) return;
+        const j = await res.json(); if(!j.success) return;
+        const notes = j.notifications || [];
+        notes.forEach(n => showPopup(n));
+      }catch(e){console.error('notif fetch',e)}
+    }
+
+    function showPopup(n){
+      const idx = document.querySelectorAll('.notif-popup').length;
+      const p = document.createElement('div');
+      p.className = 'notif-popup fixed right-4';
+      p.style.bottom = (20 + idx*96) + 'px';
+      p.innerHTML = `
+        <div class="max-w-sm bg-white shadow-lg rounded-lg border overflow-hidden">
+          <div class="p-4">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">${(n.title||'N').charAt(0)}</div>
+              <div>
+                <div class="font-semibold text-gray-800">${n.title || 'Notification'}</div>
+                <div class="text-sm text-gray-600 mt-1">${n.message || ''}</div>
+              </div>
+            </div>
+            <div class="mt-4 text-right">
+              <button class="mark-read inline-block px-3 py-1 bg-blue-600 text-white rounded">OK</button>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      p.querySelector('.mark-read').addEventListener('click', async ()=>{
+        try{ await fetch('/api/notifications/'+n._id+'/read', { method:'POST' }); }catch(e){}
+        p.remove();
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{ fetchNotifications(); });
   </script>
 </body>
 </html>

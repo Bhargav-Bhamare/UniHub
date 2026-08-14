@@ -63,13 +63,15 @@ router.post('/login', async (req, res) => {
       return res.status(400).send('Invalid email or password.');
     }
 
-    // Save session
+    // Save session (include semester and rollNumber for student dashboards)
     req.session.user = {
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      department: user.department
+      department: user.department,
+      semester: user.semester,
+      rollNumber: user.rollNumber
     };
 
     // Redirect based on role

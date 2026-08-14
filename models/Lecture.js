@@ -5,7 +5,7 @@ const LectureSchema = new mongoose.Schema({
   subject: String,
   faculty: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   department: String,
-  semester: String,
+  semester: Number,
   date: Date,
   startTime: String,
   endTime: String,

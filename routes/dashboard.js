@@ -14,6 +14,7 @@ const Result = require('../models/Result');
 const Timetable = require('../models/Timetable');
 const LeaveRequest = require('../models/LeaveRequest');
 const bcrypt = require('bcryptjs');
+// Notification model is already imported above
 
 // Student Dashboard
 router.get('/student/dashboard', isAuthenticated, authorizeRoles('student'), async (req, res) => {
@@ -40,10 +41,15 @@ router.get('/student/dashboard', isAuthenticated, authorizeRoles('student'), asy
     events.forEach(e => e.date = mapDate(e.eventDate || e.date));
     placements.forEach(p => p.date = mapDate(p.deadline || p.date));
 
-    // today's lectures
+    // today's lectures (handle semester stored as number or string in DB)
     const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
     const endOfDay = new Date(); endOfDay.setHours(23,59,59,999);
-    const lectures = await Lecture.find({ department: user.department, semester: user.semester, date: { $gte: startOfDay, $lte: endOfDay } }).sort({ startTime: 1 }).populate('faculty', 'name').lean();
+    const dept = user.department ? String(user.department).trim() : user.department;
+    const semCandidates = [];
+    if(typeof user.semester !== 'undefined' && user.semester !== null){ semCandidates.push(user.semester); const n = Number(user.semester); if(!semCandidates.includes(n)) semCandidates.push(n); }
+    const lectureQuery = { department: dept, date: { $gte: startOfDay, $lte: endOfDay } };
+    if(semCandidates.length) lectureQuery.semester = { $in: semCandidates };
+    const lectures = await Lecture.find(lectureQuery).sort({ startTime: 1 }).populate('faculty', 'name').lean();
 
     // fees summary
     const fee = await Fee.findOne({ student: user.id }).lean();
@@ -193,10 +199,25 @@ router.post('/coordinator/events/:id/assign', isAuthenticated, authorizeRoles('c
 
 // Approve / reject leave requests
 router.post('/coordinator/leave/:id/approve', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
-  try { const id = req.params.id; await LeaveRequest.findByIdAndUpdate(id, { status: 'approved' }); res.json({ success:true }); } catch(err){ console.error(err); res.status(500).json({ success:false }); }
+  try {
+    const id = req.params.id;
+    const lr = await LeaveRequest.findByIdAndUpdate(id, { status: 'approved' }, { new: true }).lean();
+    if(lr){
+      // notify student
+      try{ await Notification.create({ recipient: lr.student, title: 'Leave Approved', message: `Your leave from ${lr.from ? new Date(lr.from).toISOString().slice(0,10) : ''} has been approved.`, type: 'System' }); }catch(e){console.error('Notify student leave approved', e)}
+    }
+    res.json({ success:true });
+  } catch(err){ console.error(err); res.status(500).json({ success:false }); }
 });
 router.post('/coordinator/leave/:id/reject', isAuthenticated, authorizeRoles('coordinator'), async (req, res) => {
-  try { const id = req.params.id; await LeaveRequest.findByIdAndUpdate(id, { status: 'rejected' }); res.json({ success:true }); } catch(err){ console.error(err); res.status(500).json({ success:false }); }
+  try {
+    const id = req.params.id;
+    const lr = await LeaveRequest.findByIdAndUpdate(id, { status: 'rejected' }, { new: true }).lean();
+    if(lr){
+      try{ await Notification.create({ recipient: lr.student, title: 'Leave Rejected', message: `Your leave from ${lr.from ? new Date(lr.from).toISOString().slice(0,10) : ''} has been rejected.`, type: 'System' }); }catch(e){console.error('Notify student leave rejected', e)}
+    }
+    res.json({ success:true });
+  } catch(err){ console.error(err); res.status(500).json({ success:false }); }
 });
 
 // Admin Dashboard
@@ -238,6 +259,55 @@ router.get('/admin/users', isAuthenticated, authorizeRoles('admin'), async (req,
   }
 });
 
+// Admin: seed random students view
+router.get('/admin/seed-students', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
+  try {
+    res.render('admin/seed-students', { title: 'Seed Students', user: req.session.user });
+  } catch (err) { console.error('Seed students page error', err); res.status(500).send('Server error'); }
+});
+
+// Admin: POST seed students
+router.post('/admin/seed-students', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
+  try {
+    const { count = 10, department = 'Computer Science', semester = 1 } = req.body;
+    const c = Math.min(200, parseInt(count, 10) || 10);
+    const first = ['Aarav','Vivaan','Aditya','Arjun','Vihaan','Ishaan','Sai','Rohan','Karan','Rahul','Ananya','Priya','Saanvi','Isha','Aditi','Kavya','Tara','Maya','Neha','Simran'];
+    const last = ['Shah','Kumar','Patel','Rao','Singh','Verma','Mehta','Gupta','Joshi','Nair','Iyer','Bose','Chopra','Kapoor','Saxena'];
+    const created = [];
+    for(let i=0;i<c;i++){
+      const name = `${first[Math.floor(Math.random()*first.length)]} ${last[Math.floor(Math.random()*last.length)]}`;
+      const ts = Date.now().toString().slice(-6) + Math.floor(Math.random()*900).toString();
+      const email = `${name.toLowerCase().replace(/\s+/g,'.')}.${ts}@example.com`;
+      const roll = `${(department||'DEPT').replace(/\s+/g,'').slice(0,4).toUpperCase()}${String(semester)}${Math.floor(1000+Math.random()*8999)}`;
+      const pwd = 'student123';
+      const hashed = await bcrypt.hash(pwd, 10);
+      const u = new User({ name, email, password: hashed, role: 'student', department, semester, rollNumber: roll });
+      await u.save();
+      created.push({ _id: u._id, name: u.name, email: u.email, tempPassword: pwd });
+    }
+    res.json({ success: true, created });
+  } catch (err) { console.error('Seed students error', err); res.status(500).json({ success:false, message: String(err) }); }
+});
+
+// Admin: attendance test page (renders sample students)
+router.get('/admin/attendance-test', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
+  try {
+    const students = await User.find({ role: 'student' }).sort({ name: 1 }).limit(20).lean();
+    res.render('admin/attendance-test', { title: 'Attendance Test', students, user: req.session.user });
+  } catch (err) { console.error('Attendance test page error', err); res.status(500).send('Server error'); }
+});
+
+// Admin: save attendance from test page
+router.post('/admin/attendance-test/save', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
+  try {
+    const { records } = req.body; // [{ student, status }]
+    if(!Array.isArray(records)) return res.status(400).json({ success:false, message:'invalid records' });
+    const docs = records.map(r => ({ date: new Date(), student: r.student, status: r.status || 'Absent', recordedBy: req.session.user.id }));
+    await Attendance.insertMany(docs);
+    res.json({ success:true });
+  } catch (err) { console.error('Save attendance test error', err); res.status(500).json({ success:false }); }
+});
+
 router.get('/admin/events', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
   try {
     const events = await Event.find({}).sort({ eventDate: -1 }).lean();
@@ -273,6 +343,18 @@ router.post('/submission', isAuthenticated, async (req, res) => {
     res.json({ success: true, submission });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Notifications: unread for current user (or broadcasts)
+router.get('/api/notifications/unread', isAuthenticated, async (req, res) => {
+  try {
+    const uid = req.session.user.id;
+    const notes = await Notification.find({ $or: [ { recipient: uid }, { recipient: null } ], isRead: false }).sort({ createdAt: -1 }).lean();
+    res.json({ success: true, notifications: notes });
+  } catch (err) {
+    console.error('Unread notifications error:', err);
     res.status(500).json({ success: false });
   }
 });
@@ -341,6 +423,7 @@ router.post('/admin/users/:id/delete', isAuthenticated, authorizeRoles('admin'),
   }
 });
 
+
 // Admin event/placement management
 router.post('/admin/events/:id/delete', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
   try { const id = req.params.id; await Event.findByIdAndDelete(id); res.json({ success:true }); } catch (err) { console.error(err); res.status(500).json({ success:false }); }
@@ -392,9 +475,17 @@ router.post('/placements/apply', isAuthenticated, async (req, res) => {
 // faculty creating assignment
 router.post('/faculty/assignments/new', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
   try {
-    const { title, description, subject, dueDate } = req.body;
-    const assignment = new Assignment({ title, description, subject, dueDate, createdBy: req.session.user.id });
+    const { title, description, subject, dueDate, department, semester } = req.body;
+    const assignment = new Assignment({ title, description, subject, dueDate: dueDate ? new Date(dueDate) : undefined, department, semester, faculty: req.session.user.id });
     await assignment.save();
+    // notify students in same department+semester
+    try{
+      const students = await User.find({ role: 'student', department: department, semester: semester }).select('_id').lean();
+      const notes = students.map(s => ({ recipient: s._id, title: 'New Assignment: ' + assignment.title, message: `A new assignment "${assignment.title}" for ${assignment.subject} was posted.`, type: 'Assignment' }));
+      if(notes.length) await Notification.insertMany(notes);
+    }catch(nerr){ console.error('Notify students assignment error:', nerr); }
+    // also create coordinator-level notification (broadcast null recipient)
+    try{ await Notification.create({ recipient: null, title: 'Assignment Posted', message: `${assignment.title} posted by ${req.session.user.name}`, type: 'Assignment' }); }catch(e){console.error(e)}
     res.json({ success: true, assignment });
   } catch (err) {
     console.error(err);
@@ -406,9 +497,22 @@ router.post('/faculty/assignments/new', isAuthenticated, authorizeRoles('faculty
 router.post('/faculty/lectures/new', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
   try {
     const { title, subject, department, semester, date, startTime, endTime } = req.body;
-    const lec = new Lecture({ title, subject, faculty: req.session.user.id, department, semester, date: date ? new Date(date) : undefined, startTime, endTime });
+    const lec = new Lecture({ title, subject, faculty: req.session.user.id, department: department ? String(department).trim() : department, semester: semester ? parseInt(semester,10) : semester, date: date ? new Date(date) : undefined, startTime, endTime });
     await lec.save();
     console.log('Lecture created:', { id: lec._id, dept: lec.department, semester: lec.semester, date: lec.date });
+    // notify students in that dept+semester
+    try{
+      // normalize department/semester matching (students may have numeric semester)
+      const dept = department ? String(department).trim() : department;
+      const semNum = semester ? parseInt(semester,10) : null;
+      const students = await User.find({ role: 'student', department: dept, semester: semNum != null ? semNum : semester }).select('_id').lean();
+      const notes = students.map(s => ({ recipient: s._id, title: 'New Lecture: ' + lec.subject, message: `A new lecture on ${lec.subject} titled "${lec.title}" has been scheduled.`, type: 'Event' }));
+      if(notes.length) await Notification.insertMany(notes);
+    }catch(nerr){ console.error('Notify students lecture error:', nerr); }
+
+    // coordinator broadcast
+    try{ await Notification.create({ recipient: null, title: 'Lecture Scheduled', message: `${lec.title} scheduled by ${req.session.user.name}`, type: 'Event' }); }catch(e){console.error(e)}
+
     res.json({ success: true, lecture: lec });
   } catch (err) {
     console.error('Create lecture error:', err);
@@ -440,6 +544,34 @@ router.post('/faculty/attendance', isAuthenticated, authorizeRoles('faculty'), a
     console.error(err);
     res.status(500).json({ success: false });
   }
+});
+
+// Get students for a lecture (limit 10) - returns student list for lecture's department/semester
+router.get('/faculty/lectures/:id/students', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const lec = await Lecture.findById(id).lean();
+    if(!lec) return res.status(404).json({ success:false });
+    const dept = lec.department ? String(lec.department).trim() : lec.department;
+    const semCandidates = [];
+    if(typeof lec.semester !== 'undefined' && lec.semester !== null){ semCandidates.push(lec.semester); const n = Number(lec.semester); if(!semCandidates.includes(n)) semCandidates.push(n); }
+    const q = { role: 'student', department: dept };
+    if(semCandidates.length) q.semester = { $in: semCandidates };
+    const students = await User.find(q).select('_id name rollNumber').sort({ name:1 }).limit(10).lean();
+    res.json({ success:true, students });
+  } catch (err) { console.error(err); res.status(500).json({ success:false }); }
+});
+
+// Mark attendance for a lecture with records [{ student, status }]
+router.post('/faculty/lectures/:id/attendance', isAuthenticated, authorizeRoles('faculty'), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { records } = req.body; // array
+    if(!Array.isArray(records)) return res.status(400).json({ success:false });
+    const docs = records.map(r => ({ date: new Date(), subject: r.subject || '', department: r.department || '', semester: r.semester || '', student: r.student, status: r.status, lecture: id, recordedBy: req.session.user.id }));
+    await Attendance.insertMany(docs);
+    res.json({ success:true });
+  } catch (err) { console.error(err); res.status(500).json({ success:false }); }
 });
 
 // student leave application
@@ -476,6 +608,12 @@ router.post('/events/new', isAuthenticated, authorizeRoles('coordinator','admin'
     const { title, description, eventDate, location } = req.body;
     const e = new Event({ title, description, eventDate, location, createdBy: req.session.user.id, status: 'approved' });
     await e.save();
+    // notify all students about new event
+    try{
+      const students = await User.find({ role: 'student' }).select('_id').lean();
+      const notes = students.map(s => ({ recipient: s._id, title: 'New Event: ' + e.title, message: `A new event "${e.title}" was added.`, type: 'Event' }));
+      if(notes.length) await Notification.insertMany(notes);
+    }catch(nerr){ console.error('Notify students error:', nerr); }
     res.json({ success: true, event: e });
   } catch (err) {
     console.error(err);
@@ -496,12 +634,19 @@ router.post('/events/propose', isAuthenticated, authorizeRoles('faculty','studen
   }
 });
 
+
 // placements
 router.post('/placements/new', isAuthenticated, authorizeRoles('admin'), async (req, res) => {
   try {
     const { company, role, description } = req.body;
     const p = new Placement({ company, role, description, createdBy: req.session.user.id });
     await p.save();
+    // notify students about new placement
+    try{
+      const students = await User.find({ role: 'student' }).select('_id').lean();
+      const notes = students.map(s => ({ recipient: s._id, title: 'New Placement: ' + p.company, message: `A new placement for ${p.role} at ${p.company} was added.`, type: 'Placement' }));
+      if(notes.length) await Notification.insertMany(notes);
+    }catch(nerr){ console.error('Notify students about placement error:', nerr); }
     res.json({ success: true, placement: p });
   } catch (err) {
     console.error(err);
@@ -523,7 +668,7 @@ router.get('/notifications', isAuthenticated, async (req, res) => {
 router.post('/api/notifications/:id/read', isAuthenticated, async (req, res) => {
   try {
     const id = req.params.id;
-    await Notification.findByIdAndUpdate(id, { read: true });
+    await Notification.findByIdAndUpdate(id, { isRead: true });
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -588,6 +733,26 @@ router.post('/profile', isAuthenticated, async (req, res) => {
     console.error(err);
     res.status(500).json({ success: false });
   }
+});
+
+// Utility: seed sample fee and results for current student (for testing)
+router.post('/api/seed/sample-data', isAuthenticated, async (req, res) => {
+  try {
+    const uid = req.session.user.id;
+    const user = await User.findById(uid).lean();
+    if(!user || user.role !== 'student') return res.status(403).json({ success:false, message:'Only students' });
+    // create fee if missing
+    let fee = await Fee.findOne({ student: uid }).lean();
+    if(!fee){ const f = new Fee({ student: uid, total: 50000, paid: 20000, dueDate: new Date(Date.now()+30*24*3600*1000), status: 'partial' }); await f.save(); fee = f.toObject(); }
+    // create two sample results
+    const existing = await Result.find({ student: uid }).limit(1).lean();
+    if(!existing || existing.length===0){
+      const r1 = new Result({ student: uid, subject: 'DBMS', marks: 78, grade: 'B+', examDate: new Date(Date.now()-20*24*3600*1000) });
+      const r2 = new Result({ student: uid, subject: 'OS', marks: 85, grade: 'A', examDate: new Date(Date.now()-40*24*3600*1000) });
+      await r1.save(); await r2.save();
+    }
+    res.json({ success:true, fee });
+  } catch (err) { console.error('Seed sample data error', err); res.status(500).json({ success:false }); }
 });
 
 module.exports = router;
