@@ -39,14 +39,15 @@ module.exports = function(passport){
         }
 
         if (!user) {
-          // create a new user
-          const newUser = new User({
-            name: profile.displayName || (email ? email.split('@')[0] : 'User'),
-            email,
-            googleId: profile.id,
-            isVerified: true,
-            role: 'student'
-          });
+            // create a new user
+            const newUser = new User({
+              name: profile.displayName || (email ? email.split('@')[0] : 'User'),
+              email,
+              username: email,
+              googleId: profile.id,
+              isVerified: true,
+              role: 'student'
+            });
           await newUser.save();
           return done(null, newUser);
         }

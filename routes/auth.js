@@ -29,6 +29,7 @@ router.post('/register', async (req, res) => {
     const newUser = new User({
       name,
       email: normalizedEmail,
+      username: normalizedEmail,
       password: hashedPassword,
       role: role || 'student',
       rollNumber,
@@ -61,6 +62,13 @@ router.post('/register', async (req, res) => {
     return res.redirect('/student/dashboard');
   } catch (error) {
     console.error('Registration Error:', error && error.stack ? error.stack : error);
+    // handle duplicate key error gracefully
+    if (error && error.code === 11000) {
+      // extract which field caused duplicate
+      const key = (error.keyPattern && Object.keys(error.keyPattern)[0]) || (error.message && (/index: (\S+)_1/.exec(error.message) || [])[1]);
+      const field = key || 'field';
+      return res.status(400).send(`Duplicate ${field} — already exists.`);
+    }
     if (process.env.DEBUG === 'true') return res.status(500).send('Error creating account: ' + (error && (error.message || error.stack)));
     return res.status(500).send('Error creating account. Check server logs.');
   }
@@ -110,6 +118,11 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(400).send('Invalid email or password.');
+    }
+
+    // If the account was created via OAuth, it may not have a password
+    if (!user.password) {
+      return res.status(400).send('This account uses Google Sign-In. Please use "Sign in with Google" or reset your password.');
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
